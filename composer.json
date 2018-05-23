@@ -1,0 +1,27 @@
+{
+	"name": "able/sabre",
+	"version": "1.0",
+	"type": "library",
+	"keywords": ["phpable", "template", "engine"],
+	"description": "phpABLE template engine",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "hacpaka",
+			"email": "hacpaka@eggbe.com"
+		}
+	],
+	"require": {
+		"php": ">=7.2.0",
+		"able/prototypes": "dev-master",
+		"able/io": "dev-master",
+		"eggbe/reglib": "dev-master"
+	},
+	"autoload": {
+		"psr-4": {
+			"Able\\Sabre\\": "src/"
+		}
+	},
+	"minimum-stability": "dev",
+	"prefer-stable": true
+}
