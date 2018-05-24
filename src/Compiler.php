@@ -64,8 +64,9 @@ class Compiler {
 
 	protected final function parse(string $line) : string {
 		return preg_replace_callback('/(\W|\A)@(' . Reglib::KEYWORD . ')\s*(.*)$/s', function ($Matches) {
-			return $Matches[1] . (!preg_match('/\s+$/', $Matches[1]) ? ' ' : '')
-				. "<?php " . $this->process(strtolower($Matches[2]), $this->analize($Matches[3])) . " ?>" . $this->parse($Matches[3]);
+			return $Matches[1] . (!empty($Matches[1]) && !preg_match('/\s+$/', $Matches[1]) ? ' ' : '')
+				. "<?php " . $this->process(strtolower($Matches[2]), $this->analize($Matches[3])) . " ?>"
+					. $this->parse($Matches[3]);
 		}, $line);
 	}
 
@@ -138,7 +139,7 @@ class Compiler {
 				$count--;
 			}
 
-			$source = ltrim($source, '()');
+			$source = preg_replace('/^[()]/', '', $source);
 		}
 
 		if ($count > 0) {
@@ -168,3 +169,16 @@ Compiler::register(new SSignature('for', function ($condition) {
 Compiler::register(new SSignature('foreach', function ($condition) {
 	return 'foreach ' . $condition . '{';
 }));
+
+/** @noinspection PhpUnhandledExceptionInspection */
+Compiler::register(new SSignature('param', function ($condition) {
+	$Params = array_map(function(string $value){ return trim($value); }, preg_split('/,+/',
+		substr($condition, 1, strlen($condition) - 2), 2, PREG_SPLIT_NO_EMPTY));
+
+	if (!preg_match('/\$' . Reglib::VAR. '/', $Params[0])){
+		throw new \Exception('Invalid parameter name!');
+	}
+
+	return 'if (!isset(' . $Params[0] . ')){ ' . $Params[0] . ' = '
+		. (isset($Params[1]) ? $Params[1] : 'null') . '; }';
+}, false));
