@@ -20,7 +20,7 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public final static function register(SSignature $Signature) {
-		if (isset(self::$Traps[$Signature->token])){
+		if (isset(self::$Rules[$Signature->token])){
 			throw new \Exception('Token @' . $Signature->opening . 'already declared!');
 		}
 
@@ -53,15 +53,11 @@ class Compiler {
 	 */
 	public function compile(IReader $Reader): Generator {
 		foreach ($Reader->read() as $index => $line){
-			$line = preg_replace_callback('/[{]{2}([^}]*)[}]{2}/', function ($Matches) {
-				return '<?php echo @' . trim($Matches[1]) . '; ?>'; }, $line);
-
-			if (!empty($line = rtrim($line))) {
-				try {
-					yield $this->parse($line);
-				} catch (\Exception $Exception){
-					throw new \Exception('Error in ' . (string)$Reader . ' on ' . $index . ': ' . $Exception->getMessage());
-				}
+			try {
+				yield $this->parse($this->replace($line));
+			} catch (\Exception $Exception){
+				throw new \Exception('Error in ' . (string)$Reader
+					. ' on ' . $index . ': ' . $Exception->getMessage());
 			}
 		}
 	}
@@ -71,6 +67,15 @@ class Compiler {
 			return $Matches[1] . (!preg_match('/\s+$/', $Matches[1]) ? ' ' : '')
 				. "<?php " . $this->process(strtolower($Matches[2]), $this->analize($Matches[3])) . " ?>" . $this->parse($Matches[3]);
 		}, $line);
+	}
+
+	/**
+	 * @param string $line
+	 * @return string
+	 */
+	public final function replace(string $line): string {
+		return preg_replace_callback('/[{]{2}([^}]*)[}]{2}/', function ($Matches) {
+			return '<?=' . trim($Matches[1]) . ';?>'; }, $line);
 	}
 
 	/**
@@ -95,8 +100,11 @@ class Compiler {
 		}
 
 		if (isset(self::$Rules[$token])) {
-			array_push($this->Stack, array_map(function(SSignature $Signature){
-				return $Signature->token; }, self::$Rules[$token]));
+			if (self::$Rules[$token][0]->multiline) {
+				array_push($this->Stack, array_map(function (SSignature $Signature) {
+					return $Signature->token;
+				}, self::$Rules[$token]));
+			}
 
 			return (self::$Rules[$token][0]->handler)($condition);
 		}

@@ -7,13 +7,19 @@ use \Eggbe\Reglib\Reglib;
 /**
  * @property string token
  * @property callable handler
+ * @property callable multiline
  */
 class SSignature extends AStruct {
 
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['token', 'handler'];
+	protected static $Prototype = ['token', 'handler', 'multiline'];
+
+	/**
+	 * @var bool
+	 */
+	protected const defaultMultilineValue = true;
 
 	/**
 	 * @param string $value
@@ -40,4 +46,14 @@ class SSignature extends AStruct {
 
 		return $Handler;
 	}
+
+	/**
+	 * @param bool $value
+	 * @return bool
+	 * @throws \Exception
+	 */
+	protected final function setMultilineProperty(bool $value): bool {
+		return $value;
+	}
+
 }
