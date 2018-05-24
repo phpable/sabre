@@ -35,7 +35,7 @@ class Compiler {
 	 */
 	public final static function extend(string $token, SSignature $Signature){
 		if (!isset(self::$Rules[$token = strtolower(trim($token))])){
-			throw new \Exception('Unregistered token ' . $opening . '!');
+			throw new \Exception('Unregistered token ' . $token . '!');
 		}
 
 		array_push(self::$Rules[$token], $Signature);
@@ -86,6 +86,8 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	protected final function process(string $token, string $condition){
+
+
 		if (count($this->Stack) > 0){
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
@@ -153,6 +155,11 @@ class Compiler {
 /** @noinspection PhpUnhandledExceptionInspection */
 Compiler::register(new SSignature('if', function ($condition) {
 	return 'if ' . $condition . '{';
+}));
+
+/** @noinspection PhpUnhandledExceptionInspection */
+Compiler::extend('if', new SSignature('elseif', function ($condition) {
+	return '} elseif ' . $condition . ' {';
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
