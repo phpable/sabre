@@ -4,9 +4,12 @@ namespace Able\Sabre;
 use \Generator;
 
 use \Able\IO\Abstractions\IReader;
+use \Able\IO\Path;
+
+use \Able\Sabre\Utilities\STask;
 use \Able\Sabre\Utilities\SSignature;
 
-use \Eggbe\Reglib\Reglib;
+use \Able\Reglib\Reglib;
 
 class Compiler {
 
