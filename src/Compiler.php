@@ -2,7 +2,9 @@
 namespace Able\Sabre;
 
 use \Able\IO\Abstractions\IReader;
+
 use \Able\IO\Path;
+use \Able\IO\File;
 
 use \Able\Sabre\Utilities\Queue;
 use \Able\Sabre\Utilities\SState;
@@ -59,12 +61,18 @@ class Compiler {
 	}
 
 	/**
-	 * @param IReader $Reader
+	 * @var Path
+	 */
+	private $Source = null;
+
+	/**
+	 * @param File $File
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(IReader $Reader): \Generator {
-		$this->Queue->inject($Reader);
+	public function compile(File $File): \Generator {
+		$this->Source = $File->toPath()->getParent();
+		$this->Queue->inject($File->toReader());
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
@@ -130,7 +138,7 @@ class Compiler {
 				}, self::$Rules[$token]));
 			}
 
-			return (self::$Rules[$token][0]->handler)($condition, $this->Queue);
+			return (self::$Rules[$token][0]->handler)($condition, $this->Queue, $this->Source->toPath());
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
@@ -199,9 +207,9 @@ Compiler::register(new SSignature('foreach', function (string $condition) {
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('include', function (string $condition, Queue $Queue) {
-	$Queue->inject((new Path(APP_DIR))->append('temp5', substr($condition, 2,
-		strlen($condition) - 4) . '.sabre')->toFile()->toReader());
+Compiler::register(new SSignature('include', function (string $condition, Queue $Queue, Path $Path) {
+	$Queue->inject($Path->append(substr($condition, 2,
+		strlen($condition) - 4) . '.sabre')->toFile()->toReader(), $Queue->prefix());
 }, false));
 
 /** @noinspection PhpUnhandledExceptionInspection */

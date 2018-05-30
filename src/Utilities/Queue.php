@@ -2,6 +2,8 @@
 namespace Able\Sabre\Utilities;
 
 use \Able\IO\Abstractions\IReader;
+
+use \Able\Reglib\Regexp;
 use \Able\Sabre\Utilities\STask;
 
 class Queue {
@@ -13,46 +15,45 @@ class Queue {
 
 	/**
 	 * @param IReader $Reader
+	 * @param string $prefix
 	 * @throws \Exception
 	 */
-	public final function inject(IReader $Reader){
-		array_push($this->Stack, new STask($Reader,
-			$Reader->read(), $Reader->toString()));
+	public final function inject(IReader $Reader, string $prefix = null){
+		array_push($this->Stack, new STask($Reader->read(),
+			(string)$prefix, $Reader->toString()));
 	}
 
 	/**
 	 * @return STask
 	 */
-	protected final function current(){
+	protected final function active(){
 		return $this->Stack[count($this->Stack) - 1];
-	}
-
-	/**
-	 * @return \Generator
-	 */
-	protected final function stream(){
-		return $this->current()->stream;
-	}
-
-	/**
-	 * @return IReader
-	 */
-	protected final function reader(){
-		return $this->current()->reader;
 	}
 
 	/**
 	 * @return string
 	 */
 	public final function file(){
-		return $this->current()->file;
+		return $this->active()->file;
 	}
+
+	/**
+	 * @return int
+	 */
+	public final function line(){
+		return $this->active()->line;
+	}
+
+	/**
+	 * @var string
+	 */
+	private $prefix = null;
 
 	/**
 	 * @return string
 	 */
-	public final function line(){
-		return $this->current()->line;
+	public final function prefix(){
+		return $this->prefix;
 	}
 
 	/**
@@ -60,13 +61,16 @@ class Queue {
 	 */
 	public final function take(): \Generator {
 		while(count($this->Stack) > 0) {
-			while ($this->stream()->valid()) {
-				$this->current()->line++;
+			while ($this->active()->stream->valid()) {
+				$line = $this->active()->stream->current();
 
-				$line = $this->stream()->current();
-				$this->stream()->next();
+				$this->prefix = $this->active()->prefix
+					. (new Regexp('/^\s+/'))->take($line);
 
-				yield $line;
+				$this->active()->line++;
+				$this->active()->stream->next();
+
+				yield $this->active()->prefix . $line;
 			}
 
 			array_pop($this->Stack);

@@ -6,30 +6,22 @@ use \Able\Struct\AStruct;
 use \Able\IO\Abstractions\IReader;
 
 /**
- * @property IReader reader
  * @property \Generator stream
- * @property string line
+ * @property int line
  * @property string file
+ * @property string prefix
  */
 class STask extends AStruct {
 
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['reader', 'stream', 'file', 'line'];
+	protected static $Prototype = ['stream', 'prefix', 'file', 'line'];
 
 	/**
 	 * @const int
 	 */
 	protected const defaultLineValue = 0;
-
-	/**
-	 * @param IReader $value
-	 * @return IReader
-	 */
-	protected final function setReaderProperty(IReader $value): IReader {
-		return $value;
-	}
 
 	/**
 	 * @param \Generator $value
@@ -40,10 +32,10 @@ class STask extends AStruct {
 	}
 
 	/**
-	 * @param string $value
-	 * @return stgring
+	 * @param int $value
+	 * @return int
 	 */
-	protected final function setLineProperty(string $value): string {
+	protected final function setLineProperty(int $value): int {
 		return $value;
 	}
 
@@ -52,6 +44,14 @@ class STask extends AStruct {
 	 * @return string
 	 */
 	protected final function setFileProperty(string $value): string {
+		return $value;
+	}
+
+	/**
+	 * @param string $value
+	 * @return string
+	 */
+	protected final function setPrefixProperty(string $value): string {
 		return $value;
 	}
 }
