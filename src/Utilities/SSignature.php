@@ -2,7 +2,7 @@
 namespace Able\Sabre\Utilities;
 
 use \Able\Struct\AStruct;
-use \Eggbe\Reglib\Reglib;
+use \Able\Reglib\Reglib;
 
 /**
  * @property string token

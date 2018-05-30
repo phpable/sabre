@@ -1,10 +1,11 @@
 <?php
 namespace Able\Sabre;
 
-use \Generator;
-
 use \Able\IO\Abstractions\IReader;
 use \Able\IO\Path;
+
+use \Able\Sabre\Utilities\Queue;
+use \Able\Sabre\Utilities\SState;
 
 use \Able\Sabre\Utilities\STask;
 use \Able\Sabre\Utilities\SSignature;
@@ -45,31 +46,50 @@ class Compiler {
 	}
 
 	/**
+	 * @var Queue
+	 */
+	private $Queue = null;
+
+	/**
+	 * Compiler constructor.
+	 * @throws \Exception
+	 */
+	public final function __construct() {
+		$this->Queue = new Queue();
+	}
+
+	/**
+	 * @param IReader $Reader
+	 * @return \Generator
+	 * @throws \Exception
+	 */
+	public function compile(IReader $Reader): \Generator {
+		$this->Queue->inject($Reader);
+
+		foreach ($this->Queue->take() as $i => $line) {
+			try {
+				yield $this->parse($this->replace($line));
+			} catch (\Exception $Exception) {
+					throw new \Exception('Error in ' . $this->Queue->file()
+						. ' on ' . $this->Queue->line() . ': ' . $Exception->getMessage());
+			}
+		}
+	}
+
+	/**
 	 * @var array
 	 */
 	private $Stack = [];
 
 	/**
-	 * @param IReader $Reader
-	 * @return Generator
-	 * @throws \Exception
+	 * @param string $line
+	 * @return string
 	 */
-	public function compile(IReader $Reader): Generator {
-		foreach ($Reader->read() as $index => $line){
-			try {
-				yield $this->parse($this->replace($line));
-			} catch (\Exception $Exception){
-				throw new \Exception('Error in ' . (string)$Reader
-					. ' on ' . $index . ': ' . $Exception->getMessage());
-			}
-		}
-	}
-
 	protected final function parse(string $line) : string {
 		return preg_replace_callback('/(\W|\A)@(' . Reglib::KEYWORD . ')\s*(.*)$/s', function ($Matches) {
-			return $Matches[1] . (!empty($Matches[1]) && !preg_match('/\s+$/', $Matches[1]) ? ' ' : '')
-				. "<?php " . $this->process(strtolower($Matches[2]), $this->analize($Matches[3])) . " ?>"
-					. $this->parse($Matches[3]);
+			return $Matches[1] . (!empty($Matches[1]) && !preg_match('/\s+$/', $Matches[1]) ? ' ' : '') .
+				(!empty($out = $this->process(strtolower($Matches[2]), $this->analize($Matches[3])))
+					? "<?php " . $out . " ?>" : "") . $this->parse($Matches[3]);
 		}, $line);
 	}
 
@@ -89,8 +109,6 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	protected final function process(string $token, string $condition){
-
-
 		if (count($this->Stack) > 0){
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
@@ -101,7 +119,7 @@ class Compiler {
 					array_pop($this->Stack);
 				}
 
-				return ($Signature->handler)($condition);
+				return ($Signature->handler)($condition, $this->Queue);
 			}
 		}
 
@@ -112,7 +130,7 @@ class Compiler {
 				}, self::$Rules[$token]));
 			}
 
-			return (self::$Rules[$token][0]->handler)($condition);
+			return (self::$Rules[$token][0]->handler)($condition, $this->Queue);
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
@@ -148,7 +166,7 @@ class Compiler {
 		}
 
 		if ($count > 0) {
-			throw new \Exception('Condition is not complegted!');
+			throw new \Exception('Condition is not completed!');
 		}
 
 		return preg_replace('/' . preg_quote($source, '/'). '$/', '', $original);
@@ -156,29 +174,35 @@ class Compiler {
 }
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('if', function ($condition) {
+Compiler::register(new SSignature('if', function (string $condition) {
 	return 'if ' . $condition . '{';
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::extend('if', new SSignature('elseif', function ($condition) {
+Compiler::extend('if', new SSignature('elseif', function (string $condition) {
 	return '} elseif ' . $condition . ' {';
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::extend('if', new SSignature('else', function ($condition) {
+Compiler::extend('if', new SSignature('else', function (string $condition) {
 	return '} else {';
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('for', function ($condition) {
+Compiler::register(new SSignature('for', function (string $condition) {
 	return 'for ' . $condition . '{';
 }));
 
 /** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('foreach', function ($condition) {
+Compiler::register(new SSignature('foreach', function (string $condition) {
 	return 'foreach ' . $condition . '{';
 }));
+
+/** @noinspection PhpUnhandledExceptionInspection */
+Compiler::register(new SSignature('include', function (string $condition, Queue $Queue) {
+	$Queue->inject((new Path(APP_DIR))->append('temp5', substr($condition, 2,
+		strlen($condition) - 4) . '.sabre')->toFile()->toReader());
+}, false));
 
 /** @noinspection PhpUnhandledExceptionInspection */
 Compiler::register(new SSignature('param', function ($condition) {
@@ -192,3 +216,5 @@ Compiler::register(new SSignature('param', function ($condition) {
 	return 'if (!isset(' . $Params[0] . ')){ ' . $Params[0] . ' = '
 		. (isset($Params[1]) ? $Params[1] : 'null') . '; }';
 }, false));
+
+
