@@ -76,6 +76,8 @@ class Compiler {
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
+				echo $i . ": " . $line;
+
 				yield $this->parse($this->replace($line));
 			} catch (\Exception $Exception) {
 					throw new \Exception('Error in ' . $this->Queue->file()
@@ -106,8 +108,11 @@ class Compiler {
 	 * @return string
 	 */
 	public final function replace(string $line): string {
-		return preg_replace_callback('/[{]{2}(.+?)[}]{2}/', function ($Matches) {
-			return '<?=htmlspecialchars(' . trim($Matches[1]) . ', ENT_QUOTES, "UTF-8", false);?>'; }, $line);
+		return preg_replace_callback('/[{]{2}(.+?)[}]{2}/', function (array $Matches) {
+			return '<?=htmlspecialchars(' . trim($Matches[1]) . ', ENT_QUOTES, "UTF-8", false);?>'; },
+		preg_replace_callback('/\{!!(.+?)!!\}/', function (array $Matches){
+			return '<?=(' . trim($Matches[1]) . ');?>'; },
+		$line));
 	}
 
 	/**
