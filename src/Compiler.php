@@ -106,8 +106,8 @@ class Compiler {
 	 * @return string
 	 */
 	public final function replace(string $line): string {
-		return preg_replace_callback('/[{]{2}([^}]*)[}]{2}/', function ($Matches) {
-			return '<?=' . trim($Matches[1]) . ';?>'; }, $line);
+		return preg_replace_callback('/[{]{2}(.+?)[}]{2}/', function ($Matches) {
+			return '<?=htmlspecialchars(' . trim($Matches[1]) . ', ENT_QUOTES, "UTF-8", false);?>'; }, $line);
 	}
 
 	/**
