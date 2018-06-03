@@ -3,6 +3,7 @@ namespace Able\Sabre;
 
 use \Able\IO\Abstractions\IReader;
 
+use \Able\IO\Buffer;
 use \Able\IO\Path;
 use \Able\IO\File;
 
@@ -12,9 +13,30 @@ use \Able\Sabre\Utilities\SState;
 use \Able\Sabre\Utilities\STask;
 use \Able\Sabre\Utilities\SSignature;
 
+use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
 
+use \Eggbe\Helper\Src;
+
 class Compiler {
+
+	/**
+	 * @var Buffer[]
+	 */
+	private static $Prepend = [];
+
+	/**
+	 * @param File $File
+	 */
+	public final static function prepend(File $File){
+		array_push(self::$Prepend, $File->toBuffer()->process(function (string $value) use ($File) {
+			if (!Src::check($value)){
+				throw new \Exception('Invalid file syntax: ' . $File->toString());
+			}
+
+			return (new Regexp('/\s*\\?>$/'))->erase(trim($value)) . "\n?>";
+		}));
+	}
 
 	/**
 	 * @var array
@@ -72,12 +94,26 @@ class Compiler {
 	 */
 	public function compile(File $File): \Generator {
 		$this->Source = $File->toPath()->getParent();
+
+		/**
+		 * The initially given source file has to be
+		 * in the beginning of the compilation queue.
+		 */
 		$this->Queue->inject($File->toReader());
+
+		/**
+		 * Files defined as a prepared php-code fragment have
+		 * to be added to the queue before the compilation process begins.
+		 *
+		 * The queue always proceeds from last added file to first,
+		 * so the reverse order is essential.
+		 */
+		foreach (array_reverse(static::$Prepend) as $Buffer){
+			$this->Queue->inject($Buffer);
+		}
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
-				echo $i . ": " . $line;
-
 				yield $this->parse($this->replace($line));
 			} catch (\Exception $Exception) {
 					throw new \Exception('Error in ' . $this->Queue->file()
@@ -185,49 +221,4 @@ class Compiler {
 		return preg_replace('/' . preg_quote($source, '/'). '$/', '', $original);
 	}
 }
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('if', function (string $condition) {
-	return 'if ' . $condition . '{';
-}));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::extend('if', new SSignature('elseif', function (string $condition) {
-	return '} elseif ' . $condition . ' {';
-}));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::extend('if', new SSignature('else', function (string $condition) {
-	return '} else {';
-}));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('for', function (string $condition) {
-	return 'for ' . $condition . '{';
-}));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('foreach', function (string $condition) {
-	return 'foreach ' . $condition . '{';
-}));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('include', function (string $condition, Queue $Queue, Path $Path) {
-	$Queue->inject($Path->append(substr($condition, 2,
-		strlen($condition) - 4) . '.sabre')->toFile()->toReader(), $Queue->prefix());
-}, false));
-
-/** @noinspection PhpUnhandledExceptionInspection */
-Compiler::register(new SSignature('param', function ($condition) {
-	$Params = array_map(function(string $value){ return trim($value); }, preg_split('/,+/',
-		substr($condition, 1, strlen($condition) - 2), 2, PREG_SPLIT_NO_EMPTY));
-
-	if (!preg_match('/\$' . Reglib::VAR. '/', $Params[0])){
-		throw new \Exception('Invalid parameter name!');
-	}
-
-	return 'if (!isset(' . $Params[0] . ')){ ' . $Params[0] . ' = '
-		. (isset($Params[1]) ? $Params[1] : 'null') . '; }';
-}, false));
-
 
