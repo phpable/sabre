@@ -8,14 +8,15 @@ use \Able\IO\Path;
 use \Able\IO\File;
 
 use \Able\Sabre\Utilities\Queue;
-use \Able\Sabre\Utilities\SState;
+use \Able\Sabre\Utilities\Task;
 
-use \Able\Sabre\Utilities\STask;
-use \Able\Sabre\Utilities\SSignature;
+use \Able\Sabre\Utilities\SToken;
+use \Able\Sabre\Utilities\STrap;
 
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
 
+use \Eggbe\Helper\Str;
 use \Eggbe\Helper\Src;
 
 class Compiler {
@@ -34,8 +35,26 @@ class Compiler {
 				throw new \Exception('Invalid file syntax: ' . $File->toString());
 			}
 
-			return (new Regexp('/\s*\\?>$/'))->erase(trim($value)) . "\n?>";
+			return (new Regexp('/\s*\\?>$/'))->erase(trim($value)) . "\n?>\n";
 		}));
+	}
+
+	/**
+	 * @var STrap[]
+	 */
+	private static $Traps = [];
+
+	/**
+	 * @param STrap $Signature
+	 * @throws \Exception
+	 */
+	public final static function trap(STrap $Signature){
+		if (isset(self::$Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
+			throw new \Exception('Trap limited with "' . $Signature->opening
+				. '" and "' . $Signature->closing. '" are already declared!');
+		}
+
+		self::$Traps[$Signature->opening] = $Signature;
 	}
 
 	/**
@@ -44,24 +63,24 @@ class Compiler {
 	private static $Rules = [];
 
 	/**
-	 * @param SSignature $Signature
+	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final static function register(SSignature $Signature) {
+	public final static function token(SToken $Signature) {
 		if (isset(self::$Rules[$Signature->token])){
 			throw new \Exception('Token @' . $Signature->opening . 'already declared!');
 		}
 
 		self::$Rules[$Signature->token] = [$Signature,
-			new SSignature('end', function(){ return '}'; })];
+			new SToken('end', function(){ return '}'; })];
 	}
 
 	/**
 	 * @param string $token
-	 * @param SSignature $Signature
+	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final static function extend(string $token, SSignature $Signature){
+	public final static function extend(string $token, SToken $Signature){
 		if (!isset(self::$Rules[$token = strtolower(trim($token))])){
 			throw new \Exception('Unregistered token ' . $token . '!');
 		}
@@ -99,7 +118,7 @@ class Compiler {
 		 * The initially given source file has to be
 		 * in the beginning of the compilation queue.
 		 */
-		$this->Queue->inject($File->toReader());
+		$this->Queue->inject(new Task($File->toReader()));
 
 		/**
 		 * Files defined as a prepared php-code fragment have
@@ -109,12 +128,16 @@ class Compiler {
 		 * so the reverse order is essential.
 		 */
 		foreach (array_reverse(static::$Prepend) as $Buffer){
-			$this->Queue->inject($Buffer);
+			$this->Queue->inject(new Task($Buffer, Task::F_VERBATIM));
 		}
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
-				yield $this->parse($this->replace($line));
+				if (!$this->Queue->check(Task::F_VERBATIM)) {
+					$line = $this->parse($this->replace($line));
+				}
+
+				yield $line;
 			} catch (\Exception $Exception) {
 					throw new \Exception('Error in ' . $this->Queue->file()
 						. ' on ' . $this->Queue->line() . ': ' . $Exception->getMessage());
@@ -144,11 +167,13 @@ class Compiler {
 	 * @return string
 	 */
 	public final function replace(string $line): string {
-		return preg_replace_callback('/[{]{2}(.+?)[}]{2}/', function (array $Matches) {
-			return '<?=htmlspecialchars(' . trim($Matches[1]) . ', ENT_QUOTES, "UTF-8", false);?>'; },
-		preg_replace_callback('/\{!!(.+?)!!\}/', function (array $Matches){
-			return '<?=(' . trim($Matches[1]) . ');?>'; },
-		$line));
+		foreach (self::$Traps as $Signature){
+			$line = preg_replace_callback('/' . preg_quote($Signature->opening) . '\s*(.+?)\s*'
+				. preg_quote($Signature->closing) . '/', function (array $Matches) use ($Signature) {
+					return call_user_func($Signature->handler, $Matches[1]); }, $line);
+		}
+
+		return $line;
 	}
 
 	/**
@@ -162,7 +187,7 @@ class Compiler {
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
 				$Signature = array_values(array_filter(self::$Rules[$this->Stack[count($this->Stack) - 1][0]],
-					function(SSignature $Signature) use ($token){ return $Signature->token ==  $token; }))[0];
+					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }))[0];
 
 				if ($index < 2){
 					array_pop($this->Stack);
@@ -174,7 +199,7 @@ class Compiler {
 
 		if (isset(self::$Rules[$token])) {
 			if (self::$Rules[$token][0]->multiline) {
-				array_push($this->Stack, array_map(function (SSignature $Signature) {
+				array_push($this->Stack, array_map(function (SToken $Signature) {
 					return $Signature->token;
 				}, self::$Rules[$token]));
 			}

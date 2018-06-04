@@ -7,9 +7,9 @@ use \Able\Reglib\Reglib;
 /**
  * @property string token
  * @property callable handler
- * @property callable multiline
+ * @property bool multiline
  */
-class SSignature extends AStruct {
+class SToken extends AStruct {
 
 	/**
 	 * @var array
@@ -28,7 +28,7 @@ class SSignature extends AStruct {
 	 */
 	protected final function setTokenProperty(string $value): string {
 		if (!preg_match('/^' . Reglib::KEYWORD . '$/', $value)){
-			throw new \Exception('Invalid opening token format!');
+			throw new \Exception('Invalid opening format!');
 		}
 
 		return strtolower($value);

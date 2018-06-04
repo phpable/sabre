@@ -3,57 +3,54 @@ namespace Able\Sabre\Utilities;
 
 use \Able\IO\Abstractions\IReader;
 
-use \Able\Reglib\Regexp;
-use \Able\Sabre\Utilities\STask;
+use \Able\Prototypes\ICallable;
+use \Able\Prototypes\TCallable;
 
-class Queue {
+use \Able\Reglib\Regexp;
+
+/**
+ * @method string indent()
+ * @method string line()
+ * @method string file()
+ * @method int index()
+ * @method bool check(int $value)
+ */
+class Queue implements ICallable {
+	use TCallable;
+
+	/***
+	 * @param string $name
+	 * @param array $Args
+	 * @return mixed
+	 * @throws \Exception
+	 */
+	public final function call(string $name, array $Args = []) {
+		if (count($this->Stack) < 1 || !method_exists($this->active(), $name)
+			|| in_array(strtolower($name), ['read, __construct'])){
+				throw new \Exception('Undefined method!');
+		}
+
+		return $this->active()->{$name}(...$Args);
+	}
 
 	/**
-	 * @var STask[]
+	 * @var Task[]
 	 */
 	private $Stack = [];
 
 	/**
-	 * @param IReader $Reader
-	 * @param string $prefix
+	 * @param Task $Task
 	 * @throws \Exception
 	 */
-	public final function inject(IReader $Reader, string $prefix = null){
-		array_push($this->Stack, new STask($Reader->read(),
-			(string)$prefix, $Reader->toString()));
+	public final function inject(Task $Task){
+		array_push($this->Stack, $Task);
 	}
 
 	/**
-	 * @return STask
+	 * @return Task
 	 */
 	protected final function active(){
 		return $this->Stack[count($this->Stack) - 1];
-	}
-
-	/**
-	 * @return string
-	 */
-	public final function file(){
-		return $this->active()->file;
-	}
-
-	/**
-	 * @return int
-	 */
-	public final function line(){
-		return $this->active()->line;
-	}
-
-	/**
-	 * @var string
-	 */
-	private $prefix = null;
-
-	/**
-	 * @return string
-	 */
-	public final function prefix(){
-		return $this->prefix;
 	}
 
 	/**
@@ -61,16 +58,8 @@ class Queue {
 	 */
 	public final function take(): \Generator {
 		while(count($this->Stack) > 0) {
-			while ($this->active()->stream->valid()) {
-				$line = $this->active()->stream->current();
-
-				$this->prefix = $this->active()->prefix
-					. (new Regexp('/^\s+/'))->take($line);
-
-				$this->active()->line++;
-				$this->active()->stream->next();
-
-				yield $this->active()->prefix . $line;
+			while($this->active()->read()){
+				yield $this->active()->line();
 			}
 
 			array_pop($this->Stack);
