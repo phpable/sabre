@@ -16,8 +16,9 @@ use \Able\Sabre\Utilities\STrap;
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
 
-use \Eggbe\Helper\Str;
-use \Eggbe\Helper\Src;
+use \Able\Helpers\Str;
+use \Able\Helpers\Src;
+use PHPUnit\Runner\Exception;
 
 class Compiler {
 
@@ -60,18 +61,18 @@ class Compiler {
 	/**
 	 * @var array
 	 */
-	private static $Rules = [];
+	private static $Tokens = [];
 
 	/**
 	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
 	public final static function token(SToken $Signature) {
-		if (isset(self::$Rules[$Signature->token])){
+		if (isset(self::$Tokens[$Signature->token])){
 			throw new \Exception('Token @' . $Signature->opening . 'already declared!');
 		}
 
-		self::$Rules[$Signature->token] = [$Signature,
+		self::$Tokens[$Signature->token] = [$Signature,
 			new SToken('end', function(){ return '}'; })];
 	}
 
@@ -81,25 +82,26 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public final static function extend(string $token, SToken $Signature){
-		if (!isset(self::$Rules[$token = strtolower(trim($token))])){
+		if (!isset(self::$Tokens[$token = strtolower(trim($token))])){
 			throw new \Exception('Unregistered token ' . $token . '!');
 		}
 
-		array_push(self::$Rules[$token], $Signature);
+		array_push(self::$Tokens[$token], $Signature);
 	}
 
 	/**
-	 * @var Queue
-	 */
-	private $Queue = null;
-
-	/**
-	 * Compiler constructor.
+	 * @param string $token
+	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final function __construct() {
-		$this->Queue = new Queue();
+	public final static function finalize(string $token, SToken $Signature){
+		if (!isset(self::$Tokens[$token = strtolower(trim($token))])){
+			throw new \Exception('Unregistered token ' . $token . '!');
+		}
+
+		self::$Tokens[$token][1] = $Signature;
 	}
+
 
 	/**
 	 * @var Path
@@ -107,18 +109,41 @@ class Compiler {
 	private $Source = null;
 
 	/**
+	 * @var Queue
+	 */
+	private $Queue = null;
+
+	/**
+	 * @param Path $Source
+	 * @throws \Exception
+	 */
+	public final function __construct(Path $Source) {
+		if (!$Source->isReadable()){
+			throw new \Exception('Source path not exists or not readable!');
+		}
+
+		$this->Source = $Source;
+		$this->Queue = new Queue();
+	}
+
+
+	/**
+	 * @var array
+	 */
+	private $Stage = [];
+
+	/**
 	 * @param File $File
 	 * @return \Generator
 	 * @throws \Exception
 	 */
 	public function compile(File $File): \Generator {
-		$this->Source = $File->toPath()->getParent();
 
 		/**
 		 * The initially given source file has to be
 		 * in the beginning of the compilation queue.
 		 */
-		$this->Queue->inject(new Task($File->toReader()));
+		$this->Queue->add(new Task($File->toReader()));
 
 		/**
 		 * Files defined as a prepared php-code fragment have
@@ -128,7 +153,7 @@ class Compiler {
 		 * so the reverse order is essential.
 		 */
 		foreach (array_reverse(static::$Prepend) as $Buffer){
-			$this->Queue->inject(new Task($Buffer, Task::F_VERBATIM));
+			$this->Queue->add(new Task($Buffer, Task::F_VERBATIM));
 		}
 
 		foreach ($this->Queue->take() as $i => $line) {
@@ -137,6 +162,8 @@ class Compiler {
 					$line = $this->parse($this->replace($line));
 				}
 
+				echo "$i : $line";
+
 				yield $line;
 			} catch (\Exception $Exception) {
 					throw new \Exception('Error in ' . $this->Queue->file()
@@ -144,11 +171,6 @@ class Compiler {
 			}
 		}
 	}
-
-	/**
-	 * @var array
-	 */
-	private $Stack = [];
 
 	/**
 	 * @param string $line
@@ -161,6 +183,12 @@ class Compiler {
 					? "<?php " . $out . " ?>" : "") . $this->parse($Matches[3]);
 		}, $line);
 	}
+
+	/**
+	 * @var array
+	 */
+	private $Stack = [];
+
 
 	/**
 	 * @param string $line
@@ -186,7 +214,7 @@ class Compiler {
 		if (count($this->Stack) > 0){
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
-				$Signature = array_values(array_filter(self::$Rules[$this->Stack[count($this->Stack) - 1][0]],
+				$Signature = array_values(array_filter(self::$Tokens[$this->Stack[count($this->Stack) - 1][0]],
 					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }))[0];
 
 				if ($index < 2){
@@ -197,14 +225,14 @@ class Compiler {
 			}
 		}
 
-		if (isset(self::$Rules[$token])) {
-			if (self::$Rules[$token][0]->multiline) {
+		if (isset(self::$Tokens[$token])) {
+			if (self::$Tokens[$token][0]->multiline) {
 				array_push($this->Stack, array_map(function (SToken $Signature) {
 					return $Signature->token;
-				}, self::$Rules[$token]));
+				}, self::$Tokens[$token]));
 			}
 
-			return (self::$Rules[$token][0]->handler)($condition, $this->Queue, $this->Source->toPath());
+			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue, $this->Source->toPath());
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');

@@ -42,7 +42,7 @@ class Queue implements ICallable {
 	 * @param Task $Task
 	 * @throws \Exception
 	 */
-	public final function inject(Task $Task){
+	public final function add(Task $Task){
 		array_push($this->Stack, $Task);
 	}
 

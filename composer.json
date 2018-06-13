@@ -14,6 +14,7 @@
 	"require": {
 		"php": ">=7.2.0",
 		"able/prototypes": "dev-master",
+		"able/struct": "dev-master",
 		"able/io": "dev-master",
 		"able/reglib": "dev-master"
 	},

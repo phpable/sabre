@@ -103,8 +103,8 @@ class Task {
 	/**
 	 * @return string
 	 */
-	public final function index(){
-		return $this->indent;
+	public final function index(): int{
+		return $this->index;
 	}
 
 	/**
