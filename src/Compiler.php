@@ -143,7 +143,7 @@ class Compiler {
 		 * The initially given source file has to be
 		 * in the beginning of the compilation queue.
 		 */
-		$this->Queue->add(new Task($File->toReader()));
+		$this->Queue->immediately(new Task($File->toReader()));
 
 		/**
 		 * Files defined as a prepared php-code fragment have
@@ -153,7 +153,7 @@ class Compiler {
 		 * so the reverse order is essential.
 		 */
 		foreach (array_reverse(static::$Prepend) as $Buffer){
-			$this->Queue->add(new Task($Buffer, Task::F_VERBATIM));
+			$this->Queue->immediately(new Task($Buffer, Task::F_VERBATIM));
 		}
 
 		foreach ($this->Queue->take() as $i => $line) {

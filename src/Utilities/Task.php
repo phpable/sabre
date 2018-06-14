@@ -4,7 +4,11 @@ namespace Able\Sabre\Utilities;
 use \Able\IO\Abstractions\IReader;
 use \Able\Reglib\Regexp;
 
-class Task {
+use \Able\Prototypes\IStringable;
+use \Able\Prototypes\TStringable;
+
+class Task implements IStringable {
+	use TStringable;
 
 	/**
 	 * @const int
@@ -123,5 +127,12 @@ class Task {
 		$this->Stream->next();
 
 		return true;
+	}
+
+	/**
+	 * @return string
+	 */
+	public final function toString(): string {
+		return $this->file();
 	}
 }

@@ -7,6 +7,7 @@ use \Able\Prototypes\ICallable;
 use \Able\Prototypes\TCallable;
 
 use \Able\Reglib\Regexp;
+use \Able\Helpers\Arr;
 
 /**
  * @method string indent()
@@ -43,6 +44,15 @@ class Queue implements ICallable {
 	 * @throws \Exception
 	 */
 	public final function add(Task $Task){
+		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, $Task);
+	}
+
+	/**
+	 * @param Task $Task
+	 * @throws \Exception
+	 */
+
+	public final function immediately(Task $Task){
 		array_push($this->Stack, $Task);
 	}
 
