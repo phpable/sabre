@@ -162,8 +162,6 @@ class Compiler {
 					$line = $this->parse($this->replace($line));
 				}
 
-				echo "$i : $line";
-
 				yield $line;
 			} catch (\Exception $Exception) {
 					throw new \Exception('Error in ' . $this->Queue->file()
