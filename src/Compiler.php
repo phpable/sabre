@@ -171,8 +171,8 @@ class Compiler {
 
 				yield $line;
 			} catch (\Exception $Exception) {
-					throw new \Exception('Error in ' . $this->Queue->file()
-						. ' on ' . $this->Queue->line() . ': ' . $Exception->getMessage());
+				throw new \ErrorException($Exception->getMessage(), 0, 1,
+					$this->Queue->file(), $this->Queue->index());
 			}
 		}
 	}
