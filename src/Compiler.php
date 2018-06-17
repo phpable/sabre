@@ -29,15 +29,22 @@ class Compiler {
 
 	/**
 	 * @param File $File
+	 * @throws $Exception
 	 */
 	public final static function prepend(File $File){
-		array_push(self::$Prepend, $File->toBuffer()->process(function (string $value) use ($File) {
-			if (!Src::check($value)){
+		if (isset(self::$Prepend[$File->toString()])){
+			throw new \Exception('File path "' . $File->toString() . '" is already registered!');
+		}
+
+		self::$Prepend[$File->toString()] = $File->toBuffer()->process(function (string $value) use ($File) {
+			try {
+				token_get_all($value, TOKEN_PARSE);
+			}catch (\Throwable $exception){
 				throw new \Exception('Invalid file syntax: ' . $File->toString());
 			}
 
 			return (new Regexp('/\s*\\?>$/'))->erase(trim($value)) . "\n?>\n";
-		}));
+		});
 	}
 
 	/**
