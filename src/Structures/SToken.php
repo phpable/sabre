@@ -1,20 +1,20 @@
 <?php
-namespace Able\Sabre\Utilities;
+namespace Able\Sabre\Structures;
 
 use \Able\Struct\AStruct;
 use \Able\Reglib\Reglib;
 
 /**
- * @property string opening
- * @property string closing
+ * @property string token
  * @property callable handler
+ * @property bool multiline
  */
-class STrap extends AStruct {
+class SToken extends AStruct {
 
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['opening', 'closing', 'handler'];
+	protected static $Prototype = ['token', 'handler', 'multiline'];
 
 	/**
 	 * @var bool
@@ -26,22 +26,9 @@ class STrap extends AStruct {
 	 * @return string
 	 * @throws \Exception
 	 */
-	protected final function setOpeningProperty(string $value): string {
-		if (!preg_match('/^[{}()\[\]!%&*+=-]{1,3}$/', $value)){
+	protected final function setTokenProperty(string $value): string {
+		if (!preg_match('/^' . Reglib::KEYWORD . '$/', $value)){
 			throw new \Exception('Invalid opening format!');
-		}
-
-		return strtolower($value);
-	}
-
-	/**
-	 * @param string $value
-	 * @return string
-	 * @throws \Exception
-	 */
-	protected final function setClosingProperty(string $value): string {
-		if (!preg_match('/^[{}()\[\]!%&*+=-]{1,3}$/', $value)){
-			throw new \Exception('Invalid closing format!');
 		}
 
 		return strtolower($value);
@@ -59,4 +46,14 @@ class STrap extends AStruct {
 
 		return $Handler;
 	}
+
+	/**
+	 * @param bool $value
+	 * @return bool
+	 * @throws \Exception
+	 */
+	protected final function setMultilineProperty(bool $value): bool {
+		return $value;
+	}
+
 }
