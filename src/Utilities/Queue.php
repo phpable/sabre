@@ -9,6 +9,8 @@ use \Able\Prototypes\TCallable;
 use \Able\Reglib\Regexp;
 use \Able\Helpers\Arr;
 
+use \Able\IO\Path;
+
 /**
  * @method string indent()
  * @method string line()
@@ -18,6 +20,19 @@ use \Able\Helpers\Arr;
  */
 class Queue implements ICallable {
 	use TCallable;
+
+	/**
+	 * @var Path
+	 */
+	private $Source = null;
+
+	/**
+	 * Queue constructor.
+	 * @param Path $Source
+	 */
+	public final function __construct(Path $Source) {
+		$this->Source = $Source;
+	}
 
 	/***
 	 * @param string $name
@@ -40,20 +55,32 @@ class Queue implements ICallable {
 	private $Stack = [];
 
 	/**
-	 * @param Task $Task
+	 * @param Path $Path
 	 * @throws \Exception
+	 * @return Task
 	 */
-	public final function add(Task $Task){
-		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, $Task);
+	public final function add(Path $Path): Task{
+		if (!$Path->isAbsolute()){
+			$Path->prepend($this->Source);
+		}
+
+		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, $Task = new Task($Path->toFile()->toReader()));
+		return $Task;
 	}
 
 	/**
-	 * @param Task $Task
+	 * @param Path $Path
 	 * @throws \Exception
+	 * @return Task
 	 */
 
-	public final function immediately(Task $Task){
-		array_push($this->Stack, $Task);
+	public final function immediately(Path $Path): Task {
+		if (!$Path->isAbsolute()){
+			$Path->prepend($this->Source);
+		}
+
+		array_push($this->Stack, $Task = new Task($Path->toFile()->toReader()));
+		return $Task;
 	}
 
 	/**

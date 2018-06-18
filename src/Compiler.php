@@ -109,12 +109,6 @@ class Compiler {
 		self::$Tokens[$token][1] = $Signature;
 	}
 
-
-	/**
-	 * @var Path
-	 */
-	private $Source = null;
-
 	/**
 	 * @var Queue
 	 */
@@ -125,12 +119,16 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public final function __construct(Path $Source) {
+
+		/**
+		 * The default path uses as a root for all non-absolute file paths
+		 * so it must exist and be writable.
+		 */
 		if (!$Source->isReadable()){
-			throw new \Exception('Source path not exists or not readable!');
+			throw new \Exception('The source path does not exist or not readable!');
 		}
 
-		$this->Source = $Source;
-		$this->Queue = new Queue();
+		$this->Queue = new Queue($Source);
 	}
 
 
@@ -140,17 +138,17 @@ class Compiler {
 	private $Stage = [];
 
 	/**
-	 * @param File $File
+	 * @param Path $Path
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(File $File): \Generator {
+	public function compile(Path $Path): \Generator {
 
 		/**
 		 * The initially given source file has to be
 		 * in the beginning of the compilation queue.
 		 */
-		$this->Queue->immediately(new Task($File->toReader()));
+		$this->Queue->immediately($Path);
 
 		/**
 		 * Files defined as a prepared php-code fragment have
@@ -159,12 +157,16 @@ class Compiler {
 		 * The queue always proceeds from last added file to first,
 		 * so the reverse order is essential.
 		 */
-		foreach (array_reverse(static::$Prepend) as $Buffer){
-			$this->Queue->immediately(new Task($Buffer, Task::F_VERBATIM));
-		}
+//		foreach (array_reverse(static::$Prepend) as $Buffer){
+//			$this->Queue->immediately(new Task($Buffer, Task::F_VERBATIM));
+//		}
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
+				if ($this->Queue->check(Task::F_IGNORED)){
+					continue;
+				}
+
 				if (!$this->Queue->check(Task::F_VERBATIM)) {
 					$line = $this->parse($this->replace($line));
 				}
@@ -237,7 +239,7 @@ class Compiler {
 				}, self::$Tokens[$token]));
 			}
 
-			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue, $this->Source->toPath());
+			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue);
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
