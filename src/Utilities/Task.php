@@ -11,26 +11,6 @@ class Task implements IStringable {
 	use TStringable;
 
 	/**
-	 * @const int
-	 */
-	public const F_VERBATIM = 0b0001;
-
-	/**
-	 * @var int
-	 */
-	private $mode = 0;
-
-	/**
-	 * @param int $value
-	 * @return bool
-	 * @throws \Exception
-	 */
-	public final function check(int $value): bool {
-		return in_array($value = abs($value), [
-			self::F_VERBATIM]) && $this->mode & $value;
-	}
-
-	/**
 	 * @var Reader
 	 */
 	private $Reader = null;
@@ -50,17 +30,10 @@ class Task implements IStringable {
 	/**
 	 * Task constructor.
 	 * @param IReader $Reader
-	 * @param int $mode
 	 * @throws \Exception
 	 */
-	public final function __construct(IReader $Reader, int $mode = 0) {
+	public final function __construct(IReader $Reader) {
 		$this->Reader = $Reader;
-
-		if ($mode < 0 || $mode > self::F_VERBATIM){
-			throw new \Exception('Unsupported mode!');
-		}
-
-		$this->mode = $mode;
 		$this->Stream = $Reader->read();
 	}
 
@@ -105,7 +78,7 @@ class Task implements IStringable {
 	private $index = 0;
 
 	/**
-	 * @return string
+	 * @return int
 	 */
 	public final function index(): int{
 		return $this->index;

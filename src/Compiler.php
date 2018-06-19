@@ -12,6 +12,7 @@ use \Able\Sabre\Utilities\Task;
 
 use \Able\Sabre\Structures\SToken;
 use \Able\Sabre\Structures\STrap;
+use \Able\Sabre\Structures\SState;
 
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
@@ -110,6 +111,11 @@ class Compiler {
 	}
 
 	/**
+	 * @var SState
+	 */
+	private $State = null;
+
+	/**
 	 * @var Queue
 	 */
 	private $Queue = null;
@@ -121,7 +127,17 @@ class Compiler {
 	public final function __construct(Path $Source) {
 
 		/**
-		 * The default path uses as a root for all non-absolute file paths
+		 * The flags registry is used to determine the current parsing mode.
+		 *
+		 * It includes some special flags uses by the compiler for each line of a source
+		 * file to detect the right way this line has to be processed.
+		 *
+		 * @see SState
+		 */
+		$this->State = new SState();
+
+		/**
+		 * The default path is used as a root for all non-absolute file paths
 		 * so it must exist and be writable.
 		 */
 		if (!$Source->isReadable()){
@@ -153,21 +169,20 @@ class Compiler {
 		/**
 		 * Files defined as a prepared php-code fragment have
 		 * to be added to the queue before the compilation process begins.
-		 *
-		 * The queue always proceeds from last added file to first,
-		 * so the reverse order is essential.
 		 */
-//		foreach (array_reverse(static::$Prepend) as $Buffer){
-//			$this->Queue->immediately(new Task($Buffer, Task::F_VERBATIM));
-//		}
+		foreach (static::$Prepend as $Buffer){
+			foreach ($Buffer->read() as $line) {
+				yield $line;
+			}
+		}
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
-				if ($this->Queue->check(Task::F_IGNORED)){
+				if ($this->State->ignore){
 					continue;
 				}
 
-				if (!$this->Queue->check(Task::F_VERBATIM)) {
+				if (!$this->State->verbatim) {
 					$line = $this->parse($this->replace($line));
 				}
 
@@ -239,7 +254,7 @@ class Compiler {
 				}, self::$Tokens[$token]));
 			}
 
-			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue);
+			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue, $this->State);
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
