@@ -3,7 +3,7 @@ namespace Able\Sabre;
 
 use \Able\IO\Abstractions\IReader;
 
-use \Able\IO\Buffer;
+use \Able\IO\ReadingBuffer;
 use \Able\IO\Path;
 use \Able\IO\File;
 
@@ -23,7 +23,7 @@ use \Able\Helpers\Src;
 class Compiler {
 
 	/**
-	 * @var Buffer[]
+	 * @var ReadingBuffer[]
 	 */
 	private static $Prepend = [];
 
@@ -181,11 +181,17 @@ class Compiler {
 	private $Stage = [];
 
 	/**
+	 * @const int
+	 */
+	public const CM_NO_PREPARED = 0b0001;
+
+	/**
 	 * @param Path $Path
+	 * @param int $mode
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(Path $Path): \Generator {
+	public function compile(Path $Path, int $mode = 0): \Generator {
 
 		/**
 		 * The initially given source file has to be
@@ -197,13 +203,15 @@ class Compiler {
 		 * Files defined as a prepared php-code fragment have
 		 * to be added to the queue before the compilation process begins.
 		 */
-		foreach (static::$Prepend as $Buffer){
-			foreach ($Buffer->read() as $line) {
-				yield $line;
+		if (~$mode & self::CM_NO_PREPARED) {
+			foreach (static::$Prepend as $Buffer) {
+				foreach ($Buffer->read() as $line) {
+					yield $line;
+				}
 			}
 		}
 
-		foreach ($this->Queue->take() as $i => $line) {
+		while(!is_null($line = $this->Queue->take())) {
 			try {
 				$this->parseSequences($line);
 
@@ -350,22 +358,18 @@ class Compiler {
 
 	/**
 	 * @param string $source
+	 * @param int $count
 	 * @return string
 	 * @throws \Exception
 	 */
-	protected final function analize(string &$source): string {
-		if (empty($source) || !preg_match('/^\(/', $source)) {
+	protected final function analize(string &$source, int $count = 0): string {
+		if (!preg_match('/^\s*\(/', $source) && $count < 1) {
 			return $source;
 		}
 
-		$original = $source;
+		$out = '';
 
-		$count = 1;
-		$source = substr($source, 1);
-
-		while ($count > 0 && strlen($source) > 0) {
-			$source = ltrim(preg_replace('/^(?:' . Reglib::QUOTED . '|[^)(]+)/', '', $source));
-
+		do{
 			if (!empty($source) && $source[0] == '(') {
 				$count++;
 			}
@@ -374,14 +378,20 @@ class Compiler {
 				$count--;
 			}
 
-			$source = preg_replace('/^[()]/', '', $source);
-		}
+			$out .= Regexp::create('/^[()]{0,1}' . ($count > 0 ? '(?:'. Reglib::QUOTED
+				. '|[^)(]+)*\s*' : '') . '/')->retrieve($source) ;
+
+			if (empty($source) && $count > 0){
+				$source = $this->Queue->take();
+			}
+
+		} while ($count > 0 && !empty($source));
 
 		if ($count > 0) {
 			throw new \Exception('Condition is not completed!');
 		}
 
-		return preg_replace('/' . preg_quote($source, '/'). '$/', '', $original);
+		return trim($out);
 	}
 }
 

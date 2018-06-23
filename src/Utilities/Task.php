@@ -47,6 +47,7 @@ class Task implements IStringable {
 	 * @return Task
 	 */
 	public final function withPrefix(string $value): Task {
+//		_dumpe($value);
 		$this->prefix = $value;
 		return $this;
 	}
@@ -82,6 +83,13 @@ class Task implements IStringable {
 	 */
 	public final function index(): int{
 		return $this->index;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public final function valid(){
+		return $this->Stream->valid();
 	}
 
 	/**

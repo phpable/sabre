@@ -27,6 +27,13 @@ class Queue implements ICallable {
 	private $Source = null;
 
 	/**
+	 * @return Path
+	 */
+	public final function getSourcePath(){
+		return $this->Source->toPath();
+	}
+
+	/**
 	 * Queue constructor.
 	 * @param Path $Source
 	 */
@@ -56,50 +63,56 @@ class Queue implements ICallable {
 
 	/**
 	 * @param Path $Path
+	 * @param string $prefix
 	 * @throws \Exception
-	 * @return Task
 	 */
-	public final function add(Path $Path): Task{
+	public final function add(Path $Path, string $prefix = ''): void {
 		if (!$Path->isAbsolute()){
 			$Path->prepend($this->Source);
 		}
 
-		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, $Task = new Task($Path->toFile()->toReader()));
-		return $Task;
+		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, (
+			new Task($Path->toFile()->toReader()))->withPrefix($prefix));
 	}
 
 	/**
 	 * @param Path $Path
+	 * @param string $prefix
 	 * @throws \Exception
-	 * @return Task
 	 */
 
-	public final function immediately(Path $Path): Task {
+	public final function immediately(Path $Path, string $prefix = ''): void {
 		if (!$Path->isAbsolute()){
 			$Path->prepend($this->Source);
 		}
 
-		array_push($this->Stack, $Task = new Task($Path->toFile()->toReader()));
-		return $Task;
+		array_push($this->Stack, $Task = (new Task($Path->toFile()
+			->toReader()))->withPrefix($prefix));
 	}
 
 	/**
 	 * @return Task
+	 * @throws \Exception
 	 */
 	protected final function active(){
+		if (count($this->Stack) < 1){
+			throw new \Exception('Queue is empty!');
+		}
+
 		return $this->Stack[count($this->Stack) - 1];
 	}
 
 	/**
-	 * @return \Generator
+	 * @return string|null
+	 * @throws \Exception
 	 */
-	public final function take(): \Generator {
-		while(count($this->Stack) > 0) {
-			while($this->active()->read()){
-				yield $this->active()->line();
-			}
-
+	public final function take(): ?string {
+		while(count($this->Stack) > 0 && !$this->active()->valid()){
 			array_pop($this->Stack);
 		}
+
+		return count($this->Stack) > 0 && $this->active()->read()
+			? $this->active()->line() : null;
 	}
+
 }
