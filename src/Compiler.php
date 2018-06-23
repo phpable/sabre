@@ -49,21 +49,25 @@ class Compiler {
 	}
 
 	/**
-	 * @var STrap[]
+	 * @var array
 	 */
-	private static $Traps = [];
+	private static $Hooks = [];
 
 	/**
-	 * @param STrap $Signature
+	 * @param string $hook
+	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final static function trap(STrap $Signature){
-		if (isset(self::$Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
-			throw new \Exception('Trap limited with "' . $Signature->opening
-				. '" and "' . $Signature->closing. '" are already declared!');
+	public final static function hook(string $hook, callable $Handler){
+		if (isset(self::$Hooks[$hook = strtolower($hook)])){
+			throw new \Exception('Hook "' . $hook . '" is already registered!');
 		}
 
-		self::$Traps[$Signature->opening] = $Signature;
+		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{1,5}$/', $hook)){
+			throw new \Exception('Invalid hook syntax!');
+		}
+
+		self::$Hooks[$hook] = $Handler;
 	}
 
 	/**
@@ -82,6 +86,24 @@ class Compiler {
 
 		self::$Tokens[$Signature->token] = [$Signature,
 			new SToken('end', function(){ return '}'; })];
+	}
+
+	/**
+	 * @var STrap[]
+	 */
+	private static $Traps = [];
+
+	/**
+	 * @param STrap $Signature
+	 * @throws \Exception
+	 */
+	public final static function trap(STrap $Signature){
+		if (isset(self::$Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
+			throw new \Exception('Trap limited with "' . $Signature->opening
+				. '" and "' . $Signature->closing. '" are already declared!');
+		}
+
+		self::$Traps[$Signature->opening] = $Signature;
 	}
 
 	/**
@@ -178,13 +200,13 @@ class Compiler {
 
 		foreach ($this->Queue->take() as $i => $line) {
 			try {
-				if ($this->State->ignore){
-					continue;
-				}
+				$this->parseSequences($line);
 
-				if (!$this->State->verbatim) {
-					$line = $this->parse($this->replace($line));
-				}
+				/**
+				 * The traps have to be parsed in the last place because some of them can be added
+				 * dynamically during the commands processing sequences like tokens or hooks.
+				 */
+				$this->parseTraps($line);
 
 				yield $line;
 			} catch (\Exception $Exception) {
@@ -196,14 +218,68 @@ class Compiler {
 
 	/**
 	 * @param string $line
-	 * @return string
+	 * @return void
 	 */
-	protected final function parse(string $line) : string {
-		return preg_replace_callback('/(\W|\A)@(' . Reglib::KEYWORD . ')\s*(.*)$/s', function ($Matches) {
-			return $Matches[1] . (!empty($Matches[1]) && !preg_match('/\s+$/', $Matches[1]) ? ' ' : '') .
-				(!empty($out = $this->process(strtolower($Matches[2]), $this->analize($Matches[3])))
-					? "<?php " . $out . " ?>" : "") . $this->parse($Matches[3]);
-		}, $line);
+	public final function parseTraps(string &$line): void {
+		foreach (self::$Traps as $Signature){
+			$line = preg_replace_callback('/' . preg_quote($Signature->opening)
+				. '\s*(.+?)\s*' . preg_quote($Signature->closing) . '/',
+
+					function (array $Matches) use ($Signature) {
+						return call_user_func($Signature->handler, $Matches[1]); }, $line);
+		}
+	}
+
+	/**
+	 * @param string $line
+	 */
+	protected final function parseSequences(string &$line) : void {
+		$line = preg_replace_callback('/^(.*?\W|\A)(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
+			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')\s*(.*)$/s', function ($Matches) {
+				$output = '';
+
+				/**
+				 * If the ignorable mode is switched on, the leading part of the string
+				 * before the found match has to be skipped and won't be included in the output.
+				 */
+				if (!$this->State->ignore) {
+					$output .= $Matches[1];
+				}
+
+				/**
+				 * If the found match is a hook's sequence,
+				 * it must be processed in the first place.
+				 */
+				if ($Matches[2][0] !== '@'){
+					Str::cast(self::$Hooks[$Matches[2]]($this->Queue, $this->State));
+				} else {
+
+					/**
+					 * If the ignorable mode is switched on,
+					 * none of the found matches has to be processed.
+					 */
+					if (!$this->State->ignore) {
+						$output .= Str::embrace('<?php', $this->process(strtolower($Matches[2]),
+							$this->analize($Matches[3])), "?>", ' ');
+					}
+				}
+
+				/**
+				 * Independent from the flags states, the unparsed part of the line
+				 * has to be sent to the further analyzing.
+				 */
+				$this->parseSequences($Matches[3]);
+
+				return $output . $Matches[3];
+		}, $line, 1, $count);
+
+		/**
+		 * If none matches found and the ignorable mode is switched on,
+		 * the entire string has to be ignored.
+		 */
+		if ($this->State->ignore && $count < 1){
+			$line = '';
+		}
 	}
 
 	/**
@@ -211,28 +287,14 @@ class Compiler {
 	 */
 	private $Stack = [];
 
-
-	/**
-	 * @param string $line
-	 * @return string
-	 */
-	public final function replace(string $line): string {
-		foreach (self::$Traps as $Signature){
-			$line = preg_replace_callback('/' . preg_quote($Signature->opening) . '\s*(.+?)\s*'
-				. preg_quote($Signature->closing) . '/', function (array $Matches) use ($Signature) {
-					return call_user_func($Signature->handler, $Matches[1]); }, $line);
-		}
-
-		return $line;
-	}
-
 	/**
 	 * @param string $token
 	 * @param string $condition
 	 * @return mixed
 	 * @throws \Exception
 	 */
-	protected final function process(string $token, string $condition){
+	protected final function process(string $token, string $condition): string {
+		$token = substr($token, 1);
 		if (count($this->Stack) > 0){
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
@@ -243,7 +305,7 @@ class Compiler {
 					array_pop($this->Stack);
 				}
 
-				return ($Signature->handler)($condition, $this->Queue);
+				return Str::cast(($Signature->handler)($condition, $this->Queue));
 			}
 		}
 
@@ -254,7 +316,7 @@ class Compiler {
 				}, self::$Tokens[$token]));
 			}
 
-			return (self::$Tokens[$token][0]->handler)($condition, $this->Queue, $this->State);
+			return Str::cast((self::$Tokens[$token][0]->handler)($condition, $this->Queue));
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
