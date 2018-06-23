@@ -63,7 +63,7 @@ class Compiler {
 			throw new \Exception('Hook "' . $hook . '" is already registered!');
 		}
 
-		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{1,5}$/', $hook)){
+		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{4,12}$/', $hook)){
 			throw new \Exception('Invalid hook syntax!');
 		}
 
@@ -149,10 +149,16 @@ class Compiler {
 	public final function __construct(Path $Source) {
 
 		/**
-		 * The flags registry is used to determine the current parsing mode.
+		 * The flags are used to determine the current parsing mode
+		 * and accordingly the way in that source strings will process.
 		 *
-		 * It includes some special flags uses by the compiler for each line of a source
-		 * file to detect the right way this line has to be processed.
+		 * The ignore flag is responsible for whether or not the processed
+		 * fragment will include in the output. It can be useful for particular
+		 * blocks like comments or notations.
+		 *
+		 * The verbatim flag is responsible for whether or not the found match will process.
+		 * It can be useful in situations when we need to include any part of a front-end code to the template,
+		 * but we worried about this fragment can be mistakenly recognized by the template compiler.
 		 *
 		 * @see SState
 		 */
@@ -160,7 +166,7 @@ class Compiler {
 
 		/**
 		 * The default path is used as a root for all non-absolute file paths
-		 * so it must exist and be writable.
+		 * added to the processing queue.
 		 */
 		if (!$Source->isReadable()){
 			throw new \Exception('The source path does not exist or not readable!');
@@ -202,12 +208,6 @@ class Compiler {
 			try {
 				$this->parseSequences($line);
 
-				/**
-				 * The traps have to be parsed in the last place because some of them can be added
-				 * dynamically during the commands processing sequences like tokens or hooks.
-				 */
-				$this->parseTraps($line);
-
 				yield $line;
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
@@ -218,16 +218,18 @@ class Compiler {
 
 	/**
 	 * @param string $line
-	 * @return void
+	 * @return string
 	 */
-	public final function parseTraps(string &$line): void {
+	public final function parseTraps(string $line): string {
 		foreach (self::$Traps as $Signature){
-			$line = preg_replace_callback('/' . preg_quote($Signature->opening)
-				. '\s*(.+?)\s*' . preg_quote($Signature->closing) . '/',
+			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
+				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
 
-					function (array $Matches) use ($Signature) {
-						return call_user_func($Signature->handler, $Matches[1]); }, $line);
+				function (array $Matches) use ($Signature) {
+					return call_user_func($Signature->handler, $Matches[1]); }, $line);
 		}
+
+		return $line;
 	}
 
 	/**
@@ -235,50 +237,76 @@ class Compiler {
 	 */
 	protected final function parseSequences(string &$line) : void {
 		$line = preg_replace_callback('/^(.*?\W|\A)(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')\s*(.*)$/s', function ($Matches) {
+			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(\s*)(.*)$/s', function ($Matches) {
 				$output = '';
 
 				/**
-				 * If the ignorable mode is switched on, the leading part of the string
-				 * before the found match has to be skipped and won't be included in the output.
+				 * If the ignore mode is switched on, the part of the string before the found match
+				 * must be skipped out and doesn't need to include in the final output.
 				 */
 				if (!$this->State->ignore) {
-					$output .= $Matches[1];
+
+					/**
+					 * If the verbatim mode is switched on, the part of the string
+					 * before the found match doesn't need to be processed
+					 */
+					$output .= !$this->State->verbatim
+						? $this->parseTraps($Matches[1]) : $Matches[1];
 				}
 
 				/**
-				 * If the found match is a hook's sequence,
-				 * it must be processed in the first place.
+				 * If the match is a hook's sequence, it needs to process
+				 * in the first place because hooks can change the flags states
+				 * and eventually the way of further processing.
 				 */
 				if ($Matches[2][0] !== '@'){
 					Str::cast(self::$Hooks[$Matches[2]]($this->Queue, $this->State));
 				} else {
 
 					/**
-					 * If the ignorable mode is switched on,
-					 * none of the found matches has to be processed.
+					 * If the ignore mode is switched on, none of the
+					 * matches needs to process
 					 */
 					if (!$this->State->ignore) {
-						$output .= Str::embrace('<?php', $this->process(strtolower($Matches[2]),
-							$this->analize($Matches[3])), "?>", ' ');
+
+						/**
+						 * If the verbatim mode is switched on, the string
+						 * doesn't need to process.
+						 */
+						if (!$this->State->verbatim) {
+							$output .= Str::embrace('<?php', $this->process(strtolower(substr($Matches[2], 1)),
+								$this->analize($Matches[4])), "?>", ' ');
+
+						} else {
+							$output .= $Matches[2] . $Matches[3];
+						}
 					}
 				}
 
 				/**
-				 * Independent from the flags states, the unparsed part of the line
-				 * has to be sent to the further analyzing.
+				 * Independent from the flags states, the unparsed part of the string
+				 * needs to be subjected to further analyzing.
 				 */
-				$this->parseSequences($Matches[3]);
+				$this->parseSequences($Matches[4]);
 
-				return $output . $Matches[3];
+				return $output . $Matches[4];
 		}, $line, 1, $count);
 
 		/**
-		 * If none matches found and the ignorable mode is switched on,
-		 * the entire string has to be ignored.
+		 * If none match found and the ignore mode is switched on,
+		 * the entire string needs to be ignored.
 		 */
 		if ($this->State->ignore && $count < 1){
 			$line = '';
+		}
+
+		/**
+		 * If none match found and the verbatim mode is switched off
+		 * the string needs to be processed by a traps parser because
+		 * it still can consist a trap's injection inside.
+		 */
+		if (!$this->State->verbatim && $count < 1){
+			$line = $this->parseTraps($line);
 		}
 	}
 
@@ -294,7 +322,6 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	protected final function process(string $token, string $condition): string {
-		$token = substr($token, 1);
 		if (count($this->Stack) > 0){
 			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
 
