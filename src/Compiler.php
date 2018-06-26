@@ -243,7 +243,7 @@ class Compiler {
 	 * @param string $line
 	 */
 	protected final function parseSequences(string &$line) : void {
-		$line = preg_replace_callback('/^(.*?\W|\A)(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
+		$line = preg_replace_callback('/^(.*?(?:\s|\A))(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
 			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(\s*)(.*)$/s', function ($Matches) {
 				$output = '';
 
@@ -364,7 +364,7 @@ class Compiler {
 	 */
 	protected final function analize(string &$source, int $count = 0): string {
 		if (!preg_match('/^\s*\(/', $source) && $count < 1) {
-			return $source;
+			return '';
 		}
 
 		$out = '';
