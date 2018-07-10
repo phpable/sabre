@@ -36,8 +36,18 @@ class Queue implements ICallable {
 	/**
 	 * Queue constructor.
 	 * @param Path $Source
+	 * @throws \Exception
 	 */
 	public final function __construct(Path $Source) {
+
+		/**
+		 * The default path is used as a root for all non-absolute file paths
+		 * added to the processing queue.
+		 */
+		if (!$Source->isReadable()){
+			throw new \Exception('The source path does not exist or not readable!');
+		}
+
 		$this->Source = $Source;
 	}
 

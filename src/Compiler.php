@@ -14,6 +14,8 @@ use \Able\Sabre\Structures\SToken;
 use \Able\Sabre\Structures\STrap;
 use \Able\Sabre\Structures\SState;
 
+use \Able\Sabre\Parsers\BracketsParser;
+
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
 
@@ -146,6 +148,7 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public final function __construct(Path $Source) {
+		$this->Queue = new Queue($Source);
 
 		/**
 		 * The flags are used to determine the current parsing mode
@@ -164,14 +167,12 @@ class Compiler {
 		$this->State = new SState();
 
 		/**
-		 * The default path is used as a root for all non-absolute file paths
-		 * added to the processing queue.
+		 * The resolving method used when the end of a parsed string reached
+		 * but brackets are still open.
 		 */
-		if (!$Source->isReadable()){
-			throw new \Exception('The source path does not exist or not readable!');
-		}
-
-		$this->Queue = new Queue($Source);
+		BracketsParser::assignResolver(function() {
+			return $this->Queue->take();
+		});
 	}
 
 
@@ -266,7 +267,7 @@ class Compiler {
 				 * in the first place because hooks can change the flags states
 				 * and eventually the way of further processing.
 				 */
-				if ($Matches[2][0] !== '@'){
+				if ($Matches[2][0] !== '@') {
 					Str::cast(self::$Hooks[$Matches[2]]($this->Queue, $this->State));
 				} else {
 
@@ -282,7 +283,7 @@ class Compiler {
 						 */
 						if (!$this->State->verbatim) {
 							$output .= Str::embrace('<?php', $this->process(strtolower(substr($Matches[2], 1)),
-								$this->analize($Matches[4])), "?>", ' ');
+								BracketsParser::parse($Matches[4])), "?>", ' ');
 
 						} else {
 							$output .= $Matches[2] . $Matches[3];
@@ -354,44 +355,6 @@ class Compiler {
 		}
 
 		throw new \Exception('Undefined token @' . $token . '!');
-	}
-
-	/**
-	 * @param string $source
-	 * @param int $count
-	 * @return string
-	 * @throws \Exception
-	 */
-	protected final function analize(string &$source, int $count = 0): string {
-		if (!preg_match('/^\s*\(/', $source) && $count < 1) {
-			return '';
-		}
-
-		$out = '';
-
-		do{
-			if (!empty($source) && $source[0] == '(') {
-				$count++;
-			}
-
-			if (!empty($source) && $source[0] == ')') {
-				$count--;
-			}
-
-			$out .= Regexp::create('/^[()]{0,1}' . ($count > 0 ? '(?:'. Reglib::QUOTED
-				. '|[^)(]+)*\s*' : '') . '/')->retrieve($source) ;
-
-			if (empty($source) && $count > 0){
-				$source = $this->Queue->take();
-			}
-
-		} while ($count > 0 && !empty($source));
-
-		if ($count > 0) {
-			throw new \Exception('Condition is not completed!');
-		}
-
-		return trim($out);
 	}
 }
 
