@@ -7,6 +7,7 @@ use \Able\Reglib\Reglib;
 /**
  * @property string token
  * @property callable handler
+ * @property int capacity
  * @property bool multiline
  */
 class SToken extends AStruct {
@@ -14,12 +15,17 @@ class SToken extends AStruct {
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['token', 'handler', 'multiline'];
+	protected static $Prototype = ['token', 'handler', 'capacity', 'multiline'];
 
 	/**
-	 * @var bool
+	 * @const bool
 	 */
 	protected const defaultMultilineValue = true;
+
+	/**
+	 * @const int
+	 */
+	protected const defaultCapacityValue = 0;
 
 	/**
 	 * @param string $value
@@ -56,4 +62,11 @@ class SToken extends AStruct {
 		return $value;
 	}
 
+	/**
+	 * @param int $value
+	 * @return int
+	 */
+	protected final function setCapacityProperty(int $value): int {
+		return $value;
+	}
 }

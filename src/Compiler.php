@@ -14,11 +14,13 @@ use \Able\Sabre\Structures\SToken;
 use \Able\Sabre\Structures\STrap;
 use \Able\Sabre\Structures\SState;
 
+use \Able\Sabre\Parsers\ArgumentsParser;
 use \Able\Sabre\Parsers\BracketsParser;
 
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
 
+use \Able\Helpers\Arr;
 use \Able\Helpers\Str;
 use \Able\Helpers\Src;
 
@@ -226,22 +228,6 @@ class Compiler {
 
 	/**
 	 * @param string $line
-	 * @return string
-	 */
-	public final function parseTraps(string $line): string {
-		foreach (self::$Traps as $Signature){
-			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
-				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
-
-				function (array $Matches) use ($Signature) {
-					return call_user_func($Signature->handler, $Matches[1]); }, $line);
-		}
-
-		return $line;
-	}
-
-	/**
-	 * @param string $line
 	 */
 	protected final function parseSequences(string &$line) : void {
 		$line = preg_replace_callback('/^(.*?(?:\s|\A))(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
@@ -282,8 +268,8 @@ class Compiler {
 						 * doesn't need to process.
 						 */
 						if (!$this->State->verbatim) {
-							$output .= Str::embrace('<?php', $this->process(strtolower(substr($Matches[2], 1)),
-								BracketsParser::parse($Matches[4])), "?>", ' ');
+							$output .= Str::embrace('<?php', $this->handle(strtolower(substr($Matches[2], 1)),
+								substr(trim(BracketsParser::parse($Matches[4])), 1, -1)), "?>", ' ');
 
 						} else {
 							$output .= $Matches[2] . $Matches[3];
@@ -319,6 +305,22 @@ class Compiler {
 	}
 
 	/**
+	 * @param string $line
+	 * @return string
+	 */
+	public final function parseTraps(string $line): string {
+		foreach (self::$Traps as $Signature){
+			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
+				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
+
+				function (array $Matches) use ($Signature) {
+					return call_user_func($Signature->handler, $Matches[1]); }, $line);
+		}
+
+		return $line;
+	}
+
+	/**
 	 * @var array
 	 */
 	private $Stack = [];
@@ -329,32 +331,37 @@ class Compiler {
 	 * @return mixed
 	 * @throws \Exception
 	 */
-	protected final function process(string $token, string $condition): string {
-		if (count($this->Stack) > 0){
-			if (($index = (int)array_search($token, $this->Stack[count($this->Stack) - 1])) > 0){
+	protected final function handle(string $token, string $condition): string {
+		$Signature = null;
 
-				$Signature = array_values(array_filter(self::$Tokens[$this->Stack[count($this->Stack) - 1][0]],
-					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }))[0];
+		if (count($this->Stack) > 0){
+			if (($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
+
+				$Signature = Arr::first(array_filter(self::$Tokens[Arr::first(Arr::last($this->Stack))],
+					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }));
 
 				if ($index < 2){
 					array_pop($this->Stack);
 				}
-
-				return Str::cast(($Signature->handler)($condition, $this->Queue));
 			}
-		}
 
-		if (isset(self::$Tokens[$token])) {
-			if (self::$Tokens[$token][0]->multiline) {
+		} elseif (isset(self::$Tokens[$token])) {
+			if (Arr::first(self::$Tokens[$token])->multiline) {
 				array_push($this->Stack, array_map(function (SToken $Signature) {
 					return $Signature->token;
 				}, self::$Tokens[$token]));
 			}
 
-			return Str::cast((self::$Tokens[$token][0]->handler)($condition, $this->Queue));
+			$Signature = Arr::first(self::$Tokens[$token]);
 		}
 
-		throw new \Exception('Undefined token @' . $token . '!');
+		if (is_null($Signature)) {
+			throw new \Exception('Undefined token @' . $token . '!');
+		}
+
+		return Str::cast(call_user_func_array($Signature->handler,
+			Arr::push(Arr::take(ArgumentsParser::parse($condition), $Signature->capacity, null), $this->Queue)));
 	}
+
 }
 
