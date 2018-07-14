@@ -334,8 +334,8 @@ class Compiler {
 	protected final function handle(string $token, string $condition): string {
 		$Signature = null;
 
-		if (count($this->Stack) > 0){
-			if (($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
+		if (count($this->Stack) > 0
+			&& ($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
 
 				$Signature = Arr::first(array_filter(self::$Tokens[Arr::first(Arr::last($this->Stack))],
 					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }));
@@ -343,7 +343,6 @@ class Compiler {
 				if ($index < 2){
 					array_pop($this->Stack);
 				}
-			}
 
 		} elseif (isset(self::$Tokens[$token])) {
 			if (Arr::first(self::$Tokens[$token])->multiline) {
