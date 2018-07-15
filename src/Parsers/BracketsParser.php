@@ -32,22 +32,22 @@ class BracketsParser {
 	/**
 	 * @const string
 	 */
-	public const BT_DETECT = 0;
+	public const BT_DETECT = -1;
 
 	/**
 	 * @const string
 	 */
-	public const BT_CIRCLE = 1;
+	public const BT_CIRCLE = 0;
 
 	/**
 	 * @const string
 	 */
-	public const BT_SQUARE = 2;
+	public const BT_SQUARE = 1;
 
 	/**
 	 * @const string
 	 */
-	public const BT_CURLY = 3;
+	public const BT_CURLY = 2;
 
 	/**
 	 * @param string $source
@@ -61,20 +61,19 @@ class BracketsParser {
 			throw new \Exception('Invalid brackets type!');
 		}
 
-		if ($type == self::BT_DETECT && $count > 0) {
-			throw new \Exception('Invalid brackets type!');
-		}
-
 		$parsed = '';
 		if (strlen($source) > 0) {
-			if ($type == self::BT_DETECT && ($type = array_search($source[0],
-						array_keys(self::$Brackets)) + 1) < 1) {
-				throw new \Exception('Invalid brackets type!');
+
+			if ($type == self::BT_DETECT) {
+				if ($count > 0) {
+					throw new \Exception('Cannot detect brackets type!');
+				}
+
+				$type = (int)array_search($source[0], array_keys(self::$Brackets));
 			}
 
-			$pair = Arr::value(self::$Brackets, $type - 1);
-			if (!preg_match($e = '/^' . preg_quote($pair[0], '/')
-					. '/', $source) && $count < 1) {
+			$pair = Arr::value(self::$Brackets, $type);
+			if ($count < 1 && $source[0] != $pair[0]) {
 				return '';
 			}
 
@@ -87,7 +86,7 @@ class BracketsParser {
 					$count--;
 				}
 
-				$parsed .= Regexp::create($e = '/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:' . Reglib::QUOTED
+				$parsed .= Regexp::create('/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:' . Reglib::QUOTED
 						. '|[^' . Src::esc($pair, ']') . ']+)*\s*' : '') . '/')->retrieve($source);
 
 				if (empty($source) && $count > 0 && !is_null(static::$Resolver)) {
