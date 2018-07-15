@@ -17,21 +17,17 @@ final class ArgumentsParser {
 	public static final function parse(string &$source): array {
 		$Args = [];
 
-		if (!empty($source = preg_replace('/^[\s,]+/', '', $source))) {
-			while (!empty($source)) {
+		while (!empty($source)) {
+			$fragment = '';
 
-				$fragment = '';
-				while (strlen($source) > 0 && !preg_match('/^\s*,+/', $source)) {
+			while (strlen($source) > 0 && !preg_match('/^\s*,+/', $source)) {
+				$fragment .= Regexp::create('/^(?:' . Reglib::QUOTED
+					. '|[^({\[\'",]+)/')->retrieve($source) . BracketsParser::parse($source);
+			}
 
-					$fragment .= BracketsParser::parse($source)
-						. Regexp::create('/^(?:' . Reglib::QUOTED . '|[^({\[\'",]+)/')->retrieve($source);
-				}
-
-				Regexp::create('/^\s*,+\s*/')->retrieve($source);
-
-				if (!empty($fragment)) {
-					array_push($Args, $fragment);
-				}
+			Regexp::create('/^\s*,+\s*/')->retrieve($source);
+			if (!empty($fragment)) {
+				array_push($Args, $fragment);
 			}
 		}
 
