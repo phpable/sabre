@@ -57,48 +57,51 @@ class BracketsParser {
 	 * @throws \Exception
 	 */
 	public static function parse(string &$source, int $type = self::BT_DETECT, int $count = 0): string {
-		if ($type < self::BT_DETECT || $type > self::BT_SQUARE){
+		if ($type < self::BT_DETECT || $type > self::BT_SQUARE) {
 			throw new \Exception('Invalid brackets type!');
 		}
 
-		if ($type == self::BT_DETECT && $count > 0){
+		if ($type == self::BT_DETECT && $count > 0) {
 			throw new \Exception('Invalid brackets type!');
 		}
 
-		if ($type == self::BT_DETECT && ($type = array_search($source[0],
-			array_keys(self::$Brackets)) + 1) < 1){
+		$parsed = '';
+		if (strlen($source) > 0) {
+			if ($type == self::BT_DETECT && ($type = array_search($source[0],
+						array_keys(self::$Brackets)) + 1) < 1) {
 				throw new \Exception('Invalid brackets type!');
-		}
+			}
 
-		$pair = Arr::value(self::$Brackets, $type - 1);
-		if (!preg_match($e = '/^' . preg_quote($pair[0], '/')
-			. '/', $source) && $count < 1) {
+			$pair = Arr::value(self::$Brackets, $type - 1);
+			if (!preg_match($e = '/^' . preg_quote($pair[0], '/')
+					. '/', $source) && $count < 1) {
 				return '';
+			}
+
+			do {
+				if (!empty($source) && $source[0] == $pair[0]) {
+					$count++;
+				}
+
+				if (!empty($source) && $source[0] == $pair[1]) {
+					$count--;
+				}
+
+				$parsed .= Regexp::create($e = '/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:' . Reglib::QUOTED
+						. '|[^' . Src::esc($pair, ']') . ']+)*\s*' : '') . '/')->retrieve($source);
+
+				if (empty($source) && $count > 0 && !is_null(static::$Resolver)) {
+					$source = call_user_func(static::$Resolver);
+				}
+
+			} while ($count > 0 && !empty($source));
+
+			if ($count > 0) {
+				throw new \Exception('Condition is not completed!');
+			}
+
 		}
 
-		$out = '';
-		do{
-			if (!empty($source) && $source[0] == $pair[0]) {
-				$count++;
-			}
-
-			if (!empty($source) && $source[0] == $pair[1]) {
-				$count--;
-			}
-
-			$out .= Regexp::create($e = '/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:'. Reglib::QUOTED
-				. '|[^' . Src::esc($pair, ']') . ']+)*\s*' : '') . '/')->retrieve($source) ;
-
-			if (empty($source) && $count > 0 && !is_null(static::$Resolver)){
-				$source = call_user_func(static::$Resolver);
-			}
-
-		} while ($count > 0 && !empty($source));
-
-		if ($count > 0) {
-			throw new \Exception('Condition is not completed!');
-		}
-
-		return trim($out);
+		return trim($parsed);
 	}
 }
