@@ -12,7 +12,6 @@ use \Able\Helpers\Arr;
 use \Able\IO\Path;
 
 /**
- * @method string indent()
  * @method string line()
  * @method string file()
  * @method int index()
@@ -73,31 +72,29 @@ class Queue implements ICallable {
 
 	/**
 	 * @param Path $Path
-	 * @param string $prefix
 	 * @throws \Exception
 	 */
-	public final function add(Path $Path, string $prefix = ''): void {
+	public final function add(Path $Path): void {
 		if (!$Path->isAbsolute()){
 			$Path->prepend($this->Source);
 		}
 
 		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, (
-			new Task($Path->toFile()->toReader()))->withPrefix($prefix));
+			new Task($Path->toFile()->toReader())));
 	}
 
 	/**
 	 * @param Path $Path
-	 * @param string $prefix
 	 * @throws \Exception
 	 */
 
-	public final function immediately(Path $Path, string $prefix = ''): void {
+	public final function immediately(Path $Path): void {
 		if (!$Path->isAbsolute()){
 			$Path->prepend($this->Source);
 		}
 
 		array_push($this->Stack, $Task = (new Task($Path->toFile()
-			->toReader()))->withPrefix($prefix));
+			->toReader())));
 	}
 
 	/**

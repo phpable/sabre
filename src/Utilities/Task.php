@@ -40,40 +40,13 @@ class Task implements IStringable {
 	/**
 	 * @var string
 	 */
-	private $prefix = null;
-
-	/**
-	 * @param string $value
-	 * @return Task
-	 */
-	public final function withPrefix(string $value): Task {
-//		_dumpe($value);
-		$this->prefix = $value;
-		return $this;
-	}
-
-	/**
-	 * @var string
-	 */
 	private $line = null;
 
 	/**
 	 * @return string
 	 */
 	public final function line(): string {
-		return $this->prefix . $this->line;
-	}
-
-	/**
-	 * @var string
-	 */
-	private $indent = null;
-
-	/**
-	 * @return string
-	 */
-	public final function indent(): string {
-		return $this->prefix . $this->indent;
+		return $this->line;
 	}
 
 	private $index = 0;
@@ -101,9 +74,7 @@ class Task implements IStringable {
 		}
 
 		$this->index++;
-
 		$this->line = (string)$this->Stream->current();
-		$this->indent = Regexp::create('/^\s+/')->take($this->line);
 
 		$this->Stream->next();
 
