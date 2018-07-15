@@ -167,14 +167,6 @@ class Compiler {
 		 * @see SState
 		 */
 		$this->State = new SState();
-
-		/**
-		 * The resolving method used when the end of a parsed string reached
-		 * but brackets are still open.
-		 */
-		BracketsParser::assignResolver(function() {
-			return $this->Queue->take();
-		});
 	}
 
 
@@ -269,7 +261,8 @@ class Compiler {
 						 */
 						if (!$this->State->verbatim) {
 							$output .= Str::embrace('<?php', $this->handle(strtolower(substr($Matches[2], 1)),
-								substr(trim(BracketsParser::parse($Matches[4])), 1, -1)), "?>", ' ');
+								substr(trim(BracketsParser::parse($Matches[4], BracketsParser::BT_CIRCLE, function(){
+									return $this->Queue->take(); })), 1, -1)), "?>", ' ');
 
 						} else {
 							$output .= $Matches[2] . $Matches[3];
