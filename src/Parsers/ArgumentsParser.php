@@ -10,30 +10,31 @@ final class ArgumentsParser {
 	use TStatic;
 
 	/**
-	 * @var array
-	 */
-	private static $Brackets = ['(' => ')', '[' => ']', '{' => '}'];
-
-	/**
 	 * @param string $source
 	 * @return array
 	 * @throws \Exception
 	 */
 	public static final function parse(string &$source): array {
-		if (empty($source = preg_replace('/^[\s,]+/', '', $source))){
-			return [];
+		$Args = [];
+
+		if (!empty($source = preg_replace('/^[\s,]+/', '', $source))) {
+			while (!empty($source)) {
+
+				$fragment = '';
+				while (strlen($source) > 0 && !preg_match('/^\s*,+/', $source)) {
+
+					$fragment .= BracketsParser::parse($source)
+						. Regexp::create('/^(?:' . Reglib::QUOTED . '|[^({\[\'",]+)/')->retrieve($source);
+				}
+
+				Regexp::create('/^\s*,+\s*/')->retrieve($source);
+
+				if (!empty($fragment)) {
+					array_push($Args, $fragment);
+				}
+			}
 		}
 
-		$out = [];
-
-		if (in_array($source[0], array_keys(self::$Brackets))){
-			array_push($out, BracketsParser::parse($source,
-				$source[0].self::$Brackets[$source[0]]));
-
-		}else{
-			array_push($out, Regexp::create('/^' . Reglib::PARAMS . '/')->retrieve($source));
-		}
-
-		return array_filter(array_merge($out, self::parse($source)));
+		return $Args;
 	}
 }
