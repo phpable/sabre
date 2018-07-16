@@ -210,7 +210,7 @@ class Compiler {
 			try {
 				$this->parseSequences($line);
 
-				yield $line;
+				yield trim($line);
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
 					$this->Queue->file(), $this->Queue->index());
