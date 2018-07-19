@@ -27,31 +27,6 @@ use \Able\Helpers\Src;
 class Compiler {
 
 	/**
-	 * @var ReadingBuffer[]
-	 */
-	private static $Prepend = [];
-
-	/**
-	 * @param File $File
-	 * @throws $Exception
-	 */
-	public final static function prepend(File $File){
-		if (isset(self::$Prepend[$File->toString()])){
-			throw new \Exception('File path "' . $File->toString() . '" is already registered!');
-		}
-
-		self::$Prepend[$File->toString()] = $File->toBuffer()->process(function (string $value) use ($File) {
-			try {
-				token_get_all($value, TOKEN_PARSE);
-			}catch (\Throwable $exception){
-				throw new \Exception('Invalid file syntax: ' . $File->toString());
-			}
-
-			return (new Regexp('/\s*\\?>$/'))->erase(trim($value)) . "\n?>\n";
-		});
-	}
-
-	/**
 	 * @var array
 	 */
 	private static $Hooks = [];
@@ -136,6 +111,18 @@ class Compiler {
 	}
 
 	/**
+	 * @var ReadingBuffer[]
+	 */
+	private $RawData = [];
+
+	/**
+	 * @param ReadingBuffer $Buffer
+	 */
+	public final function addRawData(ReadingBuffer $Buffer){
+		array_push($this->RawData, $Buffer);
+	}
+
+	/**
 	 * @var SState
 	 */
 	private $State = null;
@@ -176,39 +163,37 @@ class Compiler {
 	private $Stage = [];
 
 	/**
-	 * @const int
-	 */
-	public const CM_NO_PREPARED = 0b0001;
-
-	/**
 	 * @param Path $Path
-	 * @param int $mode
+	 * @param ReadingBuffer $RawData
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(Path $Path, int $mode = 0): \Generator {
+	public function compile(Path $Path, ReadingBuffer $RawData = null): \Generator {
+		if (!is_null($RawData)){
+			$this->addRawData($RawData);
+		}
 
 		/**
-		 * The initially given source file has to be
-		 * in the beginning of the compilation queue.
+		 * The initially given source file should be at the beginning
+		 * of the compilation queue.
 		 */
 		$this->Queue->immediately($Path);
-
-		/**
-		 * Files defined as a prepared php-code fragment have
-		 * to be added to the queue before the compilation process begins.
-		 */
-		if (~$mode & self::CM_NO_PREPARED) {
-			foreach (static::$Prepend as $Buffer) {
-				foreach ($Buffer->read() as $line) {
-					yield $line;
-				}
-			}
-		}
 
 		while(!is_null($line = $this->Queue->take())) {
 			try {
 				$this->parseSequences($line);
+
+				/**
+				 * If any raw data was added during the iteration, it should be output
+				 * as a matter of priority.
+				 */
+				while(count($this->RawData) > 0) {
+					foreach (Arr::first($this->RawData)->read() as $output){
+						yield $output;
+					}
+
+					array_shift($this->RawData);
+				}
 
 				yield trim($line);
 			} catch (\Exception $Exception) {
