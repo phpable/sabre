@@ -1,6 +1,6 @@
 {
 	"name": "able/sabre",
-	"version": "1.0",
+	"version": "2.0",
 	"type": "library",
 	"keywords": ["phpable", "template", "engine"],
 	"description": "phpABLE template engine",

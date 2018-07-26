@@ -24,6 +24,8 @@ use \Able\Helpers\Arr;
 use \Able\Helpers\Str;
 use \Able\Helpers\Src;
 
+use \Able\Prototypes\IIteratable;
+
 class Compiler {
 
 	/**
@@ -63,7 +65,7 @@ class Compiler {
 		}
 
 		self::$Tokens[$Signature->token] = [$Signature,
-			new SToken('end', function(){ return '}'; })];
+			new SToken('end', function(){ return '<?php }?>'; })];
 	}
 
 	/**
@@ -111,18 +113,6 @@ class Compiler {
 	}
 
 	/**
-	 * @var ReadingBuffer[]
-	 */
-	private $RawData = [];
-
-	/**
-	 * @param ReadingBuffer $Buffer
-	 */
-	public final function addRawData(ReadingBuffer $Buffer){
-		array_push($this->RawData, $Buffer);
-	}
-
-	/**
 	 * @var SState
 	 */
 	private $State = null;
@@ -140,27 +130,26 @@ class Compiler {
 		$this->Queue = new Queue($Source);
 
 		/**
-		 * The flags are used to determine the current parsing mode
-		 * and accordingly the way in that source strings will process.
+		 * The flags are used to determine how the source file should be processed.
 		 *
-		 * The ignore flag is responsible for whether or not the processed
-		 * fragment will include in the output. It can be useful for particular
-		 * blocks like comments or notations.
+		 * The "ignore" flag is responsible for whether or not the processed fragment
+		 * will include in the output. It can be pretty useful for particular blocks of data
+		 * like comments or notations.
 		 *
-		 * The verbatim flag is responsible for whether or not the found match will process.
-		 * It can be useful in situations when we need to include any part of a front-end code to the template,
-		 * but we worried about this fragment can be mistakenly recognized by the template compiler.
+		 * The "verbatim" flag is responsible for whether or not the found fragment
+		 * will be processed. It can be pretty useful in situations when we need
+		 * to include some parts of the front-end code to the template, and we don't want
+		 * to be worried that the compiler can recognize it mistakenly.
 		 *
 		 * @see SState
 		 */
 		$this->State = new SState();
 	}
 
-
 	/**
 	 * @var array
 	 */
-	private $Stage = [];
+	private $Buffer = [];
 
 	/**
 	 * @param Path $Path
@@ -170,32 +159,48 @@ class Compiler {
 	 */
 	public function compile(Path $Path, ReadingBuffer $RawData = null): \Generator {
 		if (!is_null($RawData)){
-			$this->addRawData($RawData);
+
+			/**
+			 * If any raw data initially given,
+			 * it should be output as a matter of priority.
+			 */
+			yield from $RawData->read();
 		}
 
 		/**
-		 * The initially given source file should be at the beginning
-		 * of the compilation queue.
+		 * The initially given source file should be placed
+		 * at the beginning of the compilation queue.
 		 */
 		$this->Queue->immediately($Path);
 
 		while(!is_null($line = $this->Queue->take())) {
 			try {
-				$this->parseSequences($line);
 
-				/**
-				 * If any raw data was added during the iteration, it should be output
-				 * as a matter of priority.
-				 */
-				while(count($this->RawData) > 0) {
-					foreach (Arr::first($this->RawData)->read() as $output){
-						yield $output;
+				$out = '';
+				while(strlen(rtrim($line)) > 0) {
+					foreach ($this->parse($line) as $i => $fragment) {
+
+						/**
+						 * Normally the single line returns by the handler,
+						 * but it also possible to have an iterable object here instead.
+						 */
+						if ($fragment instanceof IIteratable){
+							yield $out;
+
+							$out = '';
+							foreach ($fragment->iterate() as $item) {
+								yield $item;
+							}
+
+							continue;
+						}
+
+						$out .= $fragment;
 					}
-
-					array_shift($this->RawData);
 				}
 
-				yield trim($line);
+				yield $out;
+
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
 					$this->Queue->file(), $this->Queue->index());
@@ -205,88 +210,38 @@ class Compiler {
 
 	/**
 	 * @param string $line
+	 * @return \Generator
+	 * @throws \Exception
 	 */
-	protected final function parseSequences(string &$line) : void {
-		$line = preg_replace_callback('/^(.*?(?:\s|\A))(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(\s*)(.*)$/s', function ($Matches) {
-				$output = '';
+	protected final function parse(string &$line): \Generator {
+		$e = '/^(\A|.*?\W)(?:(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
+			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(?:\s*)(.*))?$/s';
 
-				/**
-				 * If the ignore mode is switched on, the part of the string before the found match
-				 * must be skipped out and doesn't need to include in the final output.
-				 */
-				if (!$this->State->ignore) {
+		extract(Regexp::create($e)->exec((string)$line, 'prefix', 'token', 'line'));
 
-					/**
-					 * If the verbatim mode is switched on, the part of the string
-					 * before the found match doesn't need to be processed
-					 */
-					$output .= !$this->State->verbatim
-						? $this->parseTraps($Matches[1]) : $Matches[1];
-				}
-
-				/**
-				 * If the match is a hook's sequence, it needs to process
-				 * in the first place because hooks can change the flags states
-				 * and eventually the way of further processing.
-				 */
-				if ($Matches[2][0] !== '@') {
-					Str::cast(self::$Hooks[$Matches[2]]($this->Queue, $this->State));
-				} else {
-
-					/**
-					 * If the ignore mode is switched on, none of the
-					 * matches needs to process
-					 */
-					if (!$this->State->ignore) {
-
-						/**
-						 * If the verbatim mode is switched on, the string
-						 * doesn't need to process.
-						 */
-						if (!$this->State->verbatim) {
-							$output .= Str::embrace('<?php', $this->handle(strtolower(substr($Matches[2], 1)),
-								substr(trim(BracketsParser::parse($Matches[4], BracketsParser::BT_CIRCLE, function(){
-									return $this->Queue->take(); })), 1, -1)), "?>", ' ');
-
-						} else {
-							$output .= $Matches[2] . $Matches[3];
-						}
-					}
-				}
-
-				/**
-				 * Independent from the flags states, the unparsed part of the string
-				 * needs to be subjected to further analyzing.
-				 */
-				$this->parseSequences($Matches[4]);
-
-				return $output . $Matches[4];
-		}, $line, 1, $count);
-
-		/**
-		 * If none match found and the ignore mode is switched on,
-		 * the entire string needs to be ignored.
-		 */
-		if ($this->State->ignore && $count < 1){
-			$line = '';
+		if (!empty($prefix)) {
+			yield (string)$this->decorate($prefix);
 		}
 
-		/**
-		 * If none match found and the verbatim mode is switched off
-		 * the string needs to be processed by a traps parser because
-		 * it still can consist a trap's injection inside.
-		 */
-		if (!$this->State->verbatim && $count < 1){
-			$line = $this->parseTraps($line);
+		if (!empty($token)) {
+			yield $this->handle($token, substr(BracketsParser::parse($line,
+				BracketsParser::BT_CIRCLE, function () { return $this->Queue->take(); }), 1, -1));
 		}
 	}
 
 	/**
 	 * @param string $line
-	 * @return string
+	 * @return null|string
 	 */
-	public final function parseTraps(string $line): string {
+	public final function decorate(string $line): ?string {
+		if ($this->State->ignore){
+			return null;
+		}
+
+		if ($this->State->verbatim){
+			return $line;
+		}
+
 		foreach (self::$Traps as $Signature){
 			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
 				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
@@ -309,7 +264,20 @@ class Compiler {
 	 * @return mixed
 	 * @throws \Exception
 	 */
-	protected final function handle(string $token, string $condition): string {
+	protected final function handle(string $token, string $condition) {
+		if ($token[0] !== '@') {
+			return self::$Hooks[$token]($this->Queue, $this->State);
+		}
+
+		if ($this->State->ignore) {
+			return null;
+		}
+
+		if ($this->State->verbatim) {
+			return $token;
+		}
+
+		$token = substr($token, 1);
 		$Signature = null;
 
 		if (count($this->Stack) > 0
@@ -336,9 +304,8 @@ class Compiler {
 			throw new \Exception('Undefined token @' . $token . '!');
 		}
 
-		return Str::cast(call_user_func_array($Signature->handler,
-			Arr::push(Arr::take(ArgumentsParser::parse($condition), $Signature->capacity, null), $this->Queue)));
+		return call_user_func_array($Signature->handler,
+			Arr::push(Arr::take(ArgumentsParser::parse($condition), $Signature->capacity, null), $this->Queue));
 	}
-
 }
 
