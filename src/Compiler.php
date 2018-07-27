@@ -147,11 +147,6 @@ class Compiler {
 	}
 
 	/**
-	 * @var array
-	 */
-	private $Buffer = [];
-
-	/**
 	 * @param Path $Path
 	 * @param ReadingBuffer $RawData
 	 * @return \Generator
