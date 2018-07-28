@@ -209,8 +209,8 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	protected final function parse(string &$line): \Generator {
-		$e = '/^(\A|.*?\W)(?:(@' . Reglib::KEYWORD . '|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(.*))?$/s';
+		$e = '/^(.*?)(?:((?:(?<=\A|\W)@' . Reglib::KEYWORD . ')|' . Str::join('|', array_map(function($value){
+			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(?:\s*)(.*))?$/s';
 
 		extract(Regexp::create($e)->exec((string)$line, 'prefix', 'token', 'line'));
 
