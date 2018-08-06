@@ -184,7 +184,7 @@ class Compiler {
 
 							$out = '';
 							foreach ($fragment->iterate() as $item) {
-								yield Str::break($item);
+								yield Str::break(Str::ltrim($item));
 							}
 
 							continue;
@@ -194,7 +194,7 @@ class Compiler {
 					}
 				}
 
-				yield Str::break($out);
+				yield Str::break(Str::ltrim($out));
 
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
