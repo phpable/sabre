@@ -31,15 +31,15 @@ class Compiler {
 	/**
 	 * @var array
 	 */
-	private static $Hooks = [];
+	private $Hooks = [];
 
 	/**
 	 * @param string $hook
 	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final static function hook(string $hook, callable $Handler){
-		if (isset(self::$Hooks[$hook = strtolower($hook)])){
+	public final function hook(string $hook, callable $Handler){
+		if (isset($this->Hooks[$hook = strtolower($hook)])){
 			throw new \Exception('Hook "' . $hook . '" is already registered!');
 		}
 
@@ -47,43 +47,43 @@ class Compiler {
 			throw new \Exception('Invalid hook syntax!');
 		}
 
-		self::$Hooks[$hook] = $Handler;
+		$this->Hooks[$hook] = $Handler;
 	}
 
 	/**
 	 * @var array
 	 */
-	private static $Tokens = [];
+	private $Tokens = [];
 
 	/**
 	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final static function token(SToken $Signature) {
-		if (isset(self::$Tokens[$Signature->token])){
+	public final function token(SToken $Signature) {
+		if (isset($this->Tokens[$Signature->token])){
 			throw new \Exception('Token @' . $Signature->opening . 'already declared!');
 		}
 
-		self::$Tokens[$Signature->token] = [$Signature,
+		$this->Tokens[$Signature->token] = [$Signature,
 			new SToken('end', function(){ return '<?php }?>'; })];
 	}
 
 	/**
 	 * @var STrap[]
 	 */
-	private static $Traps = [];
+	private $Traps = [];
 
 	/**
 	 * @param STrap $Signature
 	 * @throws \Exception
 	 */
-	public final static function trap(STrap $Signature){
-		if (isset(self::$Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
+	public final function trap(STrap $Signature){
+		if (isset($this->Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
 			throw new \Exception('Trap limited with "' . $Signature->opening
 				. '" and "' . $Signature->closing. '" are already declared!');
 		}
 
-		self::$Traps[$Signature->opening] = $Signature;
+		$this->Traps[$Signature->opening] = $Signature;
 	}
 
 	/**
@@ -91,12 +91,12 @@ class Compiler {
 	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final static function extend(string $token, SToken $Signature){
-		if (!isset(self::$Tokens[$token = strtolower(trim($token))])){
+	public final function extend(string $token, SToken $Signature){
+		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
 			throw new \Exception('Unregistered token ' . $token . '!');
 		}
 
-		array_push(self::$Tokens[$token], $Signature);
+		array_push($this->Tokens[$token], $Signature);
 	}
 
 	/**
@@ -104,12 +104,12 @@ class Compiler {
 	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
-	public final static function finalize(string $token, SToken $Signature){
-		if (!isset(self::$Tokens[$token = strtolower(trim($token))])){
+	public final function finalize(string $token, SToken $Signature){
+		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
 			throw new \Exception('Unregistered token ' . $token . '!');
 		}
 
-		self::$Tokens[$token][1] = $Signature;
+		$this->Tokens[$token][1] = $Signature;
 	}
 
 	/**
@@ -210,7 +210,7 @@ class Compiler {
 	 */
 	protected final function parse(string &$line): \Generator {
 		$e = '/^(.*?)(?:((?:(?<=\A|\W)@' . Reglib::KEYWORD . ')|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys(self::$Hooks))). ')(?:\s*)(.*))?$/s';
+			return preg_quote($value, '/'); }, array_keys($this->Hooks))). ')(?:\s*)(.*))?$/s';
 
 		extract(Regexp::create($e)->exec((string)$line, 'prefix', 'token', 'line'));
 
@@ -237,7 +237,7 @@ class Compiler {
 			return $line;
 		}
 
-		foreach (self::$Traps as $Signature){
+		foreach ($this->Traps as $Signature){
 			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
 				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
 
@@ -261,7 +261,7 @@ class Compiler {
 	 */
 	protected final function handle(string $token, string $condition) {
 		if ($token[0] !== '@') {
-			return self::$Hooks[$token]($this->Queue, $this->State);
+			return $this->Hooks[$token]($this->Queue, $this->State);
 		}
 
 		if ($this->State->ignore) {
@@ -278,21 +278,21 @@ class Compiler {
 		if (count($this->Stack) > 0
 			&& ($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
 
-				$Signature = Arr::first(array_filter(self::$Tokens[Arr::first(Arr::last($this->Stack))],
+				$Signature = Arr::first(array_filter($this->Tokens[Arr::first(Arr::last($this->Stack))],
 					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }));
 
 				if ($index < 2){
 					array_pop($this->Stack);
 				}
 
-		} elseif (isset(self::$Tokens[$token])) {
-			if (Arr::first(self::$Tokens[$token])->multiline) {
+		} elseif (isset($this->Tokens[$token])) {
+			if (Arr::first($this->Tokens[$token])->multiline) {
 				array_push($this->Stack, array_map(function (SToken $Signature) {
 					return $Signature->token;
-				}, self::$Tokens[$token]));
+				}, $this->Tokens[$token]));
 			}
 
-			$Signature = Arr::first(self::$Tokens[$token]);
+			$Signature = Arr::first($this->Tokens[$token]);
 		}
 
 		if (is_null($Signature)) {
