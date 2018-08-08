@@ -14,7 +14,7 @@ class STrap extends AStruct {
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['opening', 'closing', 'handler'];
+	protected static array $Prototype = ['opening', 'closing', 'handler'];
 
 	/**
 	 * @var bool

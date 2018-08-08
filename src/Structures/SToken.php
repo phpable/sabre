@@ -16,7 +16,7 @@ class SToken extends AStruct {
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['token', 'handler', 'capacity', 'multiline', 'composite'];
+	protected static array $Prototype = ['token', 'handler', 'capacity', 'multiline', 'composite'];
 
 	/**
 	 * @const bool

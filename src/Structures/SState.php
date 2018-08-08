@@ -12,7 +12,7 @@ class SState extends AStruct {
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['verbatim', 'ignore'];
+	protected static array $Prototype = ['verbatim', 'ignore'];
 
 	/**
 	 * @var bool
