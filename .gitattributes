@@ -10,6 +10,8 @@
 *.less eol=lf
 *.txt eol=lf
 *.md eol=lf
+*.xml eol=lf
+*.yml eol=lf
 
 LICENSE eol=lf
 CHANGELOG eol=lf
