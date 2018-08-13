@@ -124,10 +124,11 @@ class Compiler {
 
 	/**
 	 * @param Path $Source
+	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final function __construct(Path $Source) {
-		$this->Queue = new Queue($Source);
+	public final function __construct(Path $Source, callable $Handler = null) {
+		$this->Queue = new Queue($Source, $Handler);
 
 		/**
 		 * The flags are used to determine how the source file should be processed.

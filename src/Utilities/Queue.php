@@ -33,11 +33,20 @@ class Queue implements ICallable {
 	}
 
 	/**
+	 * @var callable
+	 */
+	private $Handler = null;
+
+	/**
 	 * Queue constructor.
 	 * @param Path $Source
+	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final function __construct(Path $Source) {
+	public final function __construct(Path $Source, ?callable $Handler = null) {
+		if (is_callable($Handler)){
+			$this->Handler = $Handler;
+		}
 
 		/**
 		 * The default path is used as a root for all non-absolute file paths
@@ -106,7 +115,7 @@ class Queue implements ICallable {
 			throw new \Exception('Queue is empty!');
 		}
 
-		return $this->Stack[count($this->Stack) - 1];
+		return Arr::last($this->Stack);
 	}
 
 	/**
@@ -115,6 +124,10 @@ class Queue implements ICallable {
 	 */
 	public final function take(): ?string {
 		while(count($this->Stack) > 0 && !$this->active()->valid()){
+			if (!is_null($this->Handler)){
+				call_user_func($this->Handler, $this->active()->toString());
+			}
+
 			array_pop($this->Stack);
 		}
 
