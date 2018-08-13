@@ -148,20 +148,10 @@ class Compiler {
 
 	/**
 	 * @param Path $Path
-	 * @param ReadingBuffer $RawData
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(Path $Path, ReadingBuffer $RawData = null): \Generator {
-		if (!is_null($RawData)){
-
-			/**
-			 * If any raw data initially given,
-			 * it should be output as a matter of priority.
-			 */
-			yield from $RawData->read();
-		}
-
+	public function compile(Path $Path): \Generator {
 		/**
 		 * The initially given source file should be placed
 		 * at the beginning of the compilation queue.
