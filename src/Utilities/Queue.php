@@ -88,6 +88,15 @@ class Queue implements ICallable, ICountable {
 	}
 
 	/**
+	 * @return void
+	 */
+	public final function flush(): void {
+		while(count($this->Stack) > 0){
+			array_pop($this->Stack);
+		}
+	}
+
+	/**
 	 * @param Path $Path
 	 * @throws \Exception
 	 */
