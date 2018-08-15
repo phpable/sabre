@@ -4,6 +4,7 @@ namespace Able\Sabre\Utilities;
 use \Able\IO\Abstractions\IReader;
 
 use \Able\Prototypes\ICallable;
+use \Able\Prototypes\ICountable;
 use \Able\Prototypes\TCallable;
 
 use \Able\Reglib\Regexp;
@@ -17,7 +18,7 @@ use \Able\IO\Path;
  * @method int index()
  * @method bool check(int $value)
  */
-class Queue implements ICallable {
+class Queue implements ICallable, ICountable {
 	use TCallable;
 
 	/**
@@ -78,6 +79,13 @@ class Queue implements ICallable {
 	 * @var Task[]
 	 */
 	private $Stack = [];
+
+	/**
+	 * @return int
+	 */
+	public final function count(): int {
+		return count($this->Stack);
+	}
 
 	/**
 	 * @param Path $Path
