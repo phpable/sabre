@@ -294,8 +294,31 @@ class Compiler {
 			throw new \Exception('Undefined token @' . $token . '!');
 		}
 
-		return call_user_func_array($Signature->handler,
-			Arr::push(Arr::take(ArgumentsParser::parse($condition), $Signature->capacity, null), $this->Queue));
+		$Args = ArgumentsParser::parse($condition);
+		if ($Signature->capacity < count($Args)){
+			$Args = Arr::take($Args, $Signature->capacity, null);
+		}
+
+		$Args = Arr::push($Args, $this->Queue);
+		if ($Signature->composite){
+			$Args = Arr::push($Args, clone $this);
+		}
+
+		return call_user_func_array($Signature->handler, $Args);
+	}
+
+	/**
+	 * Clone compiler instance and restore it
+	 * to the initial state.
+	 */
+	public final function __clone() {
+		$this->Queue = clone $this->Queue;
+		$this->Queue->flush();
+
+		$this->State = clone $this->State;
+		$this->State->flush();
+
+		$this->Stack = [];
 	}
 }
 

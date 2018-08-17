@@ -9,18 +9,23 @@ use \Able\Reglib\Reglib;
  * @property callable handler
  * @property int capacity
  * @property bool multiline
+ * @property bool composite
  */
 class SToken extends AStruct {
 
 	/**
 	 * @var array
 	 */
-	protected static $Prototype = ['token', 'handler', 'capacity', 'multiline'];
+	protected static $Prototype = ['token', 'handler', 'capacity', 'multiline', 'composite'];
 
 	/**
 	 * @const bool
 	 */
 	protected const defaultMultilineValue = true;
+	/**
+	 * @const bool
+	 */
+	protected const defaultCompositeValue = false;
 
 	/**
 	 * @const int
@@ -54,6 +59,14 @@ class SToken extends AStruct {
 	}
 
 	/**
+	 * @param int $value
+	 * @return int
+	 */
+	protected final function setCapacityProperty(int $value): int {
+		return $value;
+	}
+
+	/**
 	 * @param bool $value
 	 * @return bool
 	 * @throws \Exception
@@ -63,10 +76,11 @@ class SToken extends AStruct {
 	}
 
 	/**
-	 * @param int $value
-	 * @return int
+	 * @param bool $value
+	 * @return bool
+	 * @throws \Exception
 	 */
-	protected final function setCapacityProperty(int $value): int {
+	protected final function setCompositeProperty(bool $value): bool {
 		return $value;
 	}
 }
