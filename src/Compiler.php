@@ -153,6 +153,10 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public function compile(Path $Path): \Generator {
+		if (count($this->Queue) > 0){
+			throw new \Exception('Queue is not empty!');
+		}
+
 		/**
 		 * The initially given source file should be placed
 		 * at the beginning of the compilation queue.
