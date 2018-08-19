@@ -267,8 +267,10 @@ class Compiler {
 		}
 
 		$token = substr($token, 1);
-		$Signature = null;
+		$condition = substr(BracketsParser::parse($line, BracketsParser::BT_CIRCLE,
+			function () { return $this->Queue->take(); }), 1, -1);
 
+		$Signature = null;
 		if (count($this->Stack) > 0
 			&& ($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
 
@@ -293,9 +295,7 @@ class Compiler {
 			throw new \Exception('Undefined token @' . $token . '!');
 		}
 
-		$Args = ArgumentsParser::parse(substr(BracketsParser::parse($line, BracketsParser::BT_CIRCLE,
-			function () { return $this->Queue->take(); }), 1, -1));
-
+		$Args = ArgumentsParser::parse($condition);
 		if ($Signature->capacity < count($Args)){
 			$Args = Arr::take($Args, $Signature->capacity, null);
 		}
