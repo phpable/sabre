@@ -296,7 +296,7 @@ class Compiler {
 		}
 
 		$Args = ArgumentsParser::parse($condition);
-		if ($Signature->capacity < count($Args)){
+		if ($Signature->capacity != count($Args)){
 			$Args = Arr::take($Args, $Signature->capacity, null);
 		}
 
