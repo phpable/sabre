@@ -46,7 +46,7 @@ class BracketsParser {
 	 * @throws \Exception
 	 */
 	public static function parse(string &$source, int $type = self::BT_DETECT, callable $Resolver = null): string {
-		if ($type < self::BT_DETECT || $type > self::BT_SQUARE) {
+		if ($type < self::BT_DETECT || $type > self::BT_CURLY) {
 			throw new \Exception('Invalid brackets type!');
 		}
 
