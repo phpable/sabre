@@ -61,8 +61,13 @@ class SToken extends AStruct {
 	/**
 	 * @param int $value
 	 * @return int
+	 * @throws \Exception
 	 */
 	protected final function setCapacityProperty(int $value): int {
+		if ($value < 0){
+			throw new \Exception('The capacity value is out of range!');
+		}
+
 		return $value;
 	}
 
