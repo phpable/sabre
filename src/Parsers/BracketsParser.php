@@ -51,7 +51,7 @@ class BracketsParser {
 		}
 
 		$parsed = '';
-		if (preg_match_all('/^[({\[]/', $source)) {
+		if (preg_match_all('/^[({\[]/', $source = ltrim($source))) {
 
 			$count = 0;
 			if ($type == self::BT_DETECT) {
