@@ -214,8 +214,7 @@ class Compiler {
 		}
 
 		if (!empty($token)) {
-			yield $this->handle($token, substr(BracketsParser::parse($line,
-				BracketsParser::BT_CIRCLE, function () { return $this->Queue->take(); }), 1, -1));
+			yield $this->handle($token, $line);
 		}
 	}
 
@@ -250,11 +249,11 @@ class Compiler {
 
 	/**
 	 * @param string $token
-	 * @param string $condition
+	 * @param string $line
 	 * @return mixed
 	 * @throws \Exception
 	 */
-	protected final function handle(string $token, string $condition) {
+	protected final function handle(string $token, string &$line) {
 		if ($token[0] !== '@') {
 			return $this->Hooks[$token]($this->Queue, $this->State);
 		}
@@ -294,7 +293,9 @@ class Compiler {
 			throw new \Exception('Undefined token @' . $token . '!');
 		}
 
-		$Args = ArgumentsParser::parse($condition);
+		$Args = ArgumentsParser::parse(substr(BracketsParser::parse($line, BracketsParser::BT_CIRCLE,
+			function () { return $this->Queue->take(); }), 1, -1));
+
 		if ($Signature->capacity < count($Args)){
 			$Args = Arr::take($Args, $Signature->capacity, null);
 		}
