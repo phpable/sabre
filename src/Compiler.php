@@ -3,9 +3,10 @@ namespace Able\Sabre;
 
 use \Able\IO\Abstractions\IReader;
 
-use \Able\IO\ReadingBuffer;
 use \Able\IO\Path;
 use \Able\IO\File;
+use \Able\IO\Reader;
+use \Able\IO\ReadingBuffer;
 
 use \Able\Sabre\Utilities\Queue;
 use \Able\Sabre\Utilities\Task;
@@ -123,12 +124,11 @@ class Compiler {
 	private $Queue = null;
 
 	/**
-	 * @param Path $Source
 	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final function __construct(Path $Source, callable $Handler = null) {
-		$this->Queue = new Queue($Source, $Handler);
+	public final function __construct(callable $Handler = null) {
+		$this->Queue = new Queue($Handler);
 
 		/**
 		 * The flags are used to determine how the source file should be processed.
@@ -148,20 +148,17 @@ class Compiler {
 	}
 
 	/**
-	 * @param Path $Path
+	 * @param Reader $Reader
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(Path $Path): \Generator {
-		if (count($this->Queue) > 0){
-			throw new \Exception('Queue is not empty!');
-		}
+	public function compile(Reader $Reader): \Generator {
 
 		/**
 		 * The initially given source file should be placed
 		 * at the beginning of the compilation queue.
 		 */
-		$this->Queue->immediately($Path);
+		$this->Queue->immediately($Reader);
 
 		while(!is_null($line = $this->Queue->take())) {
 			try {

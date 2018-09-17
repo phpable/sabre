@@ -1,7 +1,11 @@
 <?php
 namespace Able\Sabre\Utilities;
 
+use Able\Helpers\Src;
 use \Able\IO\Abstractions\IReader;
+use \Able\IO\Abstractions\ILocated;
+use \Able\IO\Reader;
+
 use \Able\Reglib\Regexp;
 
 use \Able\Prototypes\IStringable;
@@ -17,9 +21,11 @@ class Task implements IStringable {
 
 	/**
 	 * @return string
+	 * @throws \Exception
 	 */
 	public final function file(){
-		return $this->Reader->toString();
+		return $this->Reader instanceof ILocated
+			? $this->Reader->getLocation() : '[Unknown Source]';
 	}
 
 	/**

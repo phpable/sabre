@@ -11,6 +11,7 @@ use \Able\Reglib\Regexp;
 use \Able\Helpers\Arr;
 
 use \Able\IO\Path;
+use \Able\IO\Reader;
 
 /**
  * @method string line()
@@ -22,42 +23,19 @@ class Queue implements ICallable, ICountable {
 	use TCallable;
 
 	/**
-	 * @var Path
-	 */
-	private $Source = null;
-
-	/**
-	 * @return Path
-	 */
-	public final function getSourcePath(){
-		return $this->Source->toPath();
-	}
-
-	/**
 	 * @var callable
 	 */
 	private $Handler = null;
 
 	/**
 	 * Queue constructor.
-	 * @param Path $Source
 	 * @param callable $Handler
 	 * @throws \Exception
 	 */
-	public final function __construct(Path $Source, ?callable $Handler = null) {
+	public final function __construct(callable $Handler = null) {
 		if (is_callable($Handler)){
 			$this->Handler = $Handler;
 		}
-
-		/**
-		 * The default path is used as a root for all non-absolute file paths
-		 * added to the processing queue.
-		 */
-		if (!$Source->isReadable()){
-			throw new \Exception('The source path does not exist or not readable!');
-		}
-
-		$this->Source = $Source;
 	}
 
 	/***
@@ -97,30 +75,21 @@ class Queue implements ICallable, ICountable {
 	}
 
 	/**
-	 * @param Path $Path
+	 * @param IReader $Reader
 	 * @throws \Exception
 	 */
-	public final function add(Path $Path): void {
-		if (!$Path->isAbsolute()){
-			$Path->prepend($this->Source);
-		}
-
-		$this->Stack = Arr::insert($this->Stack, count($this->Stack) - 2, (
-			new Task($Path->toFile()->toReader())));
+	public final function add(IReader $Reader): void {
+		$this->Stack = Arr::insert($this->Stack,
+			count($this->Stack) - 2, (new Task($Reader)));
 	}
 
 	/**
-	 * @param Path $Path
+	 * @param IReader $Reader
 	 * @throws \Exception
 	 */
 
-	public final function immediately(Path $Path): void {
-		if (!$Path->isAbsolute()){
-			$Path->prepend($this->Source);
-		}
-
-		array_push($this->Stack, $Task = (new Task($Path->toFile()
-			->toReader())));
+	public final function immediately(IReader $Reader): void {
+		array_push($this->Stack, (new Task($Reader)));
 	}
 
 	/**
