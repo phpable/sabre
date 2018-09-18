@@ -1,12 +1,8 @@
 <?php
 namespace Able\Sabre;
 
-use \Able\IO\Abstractions\IReader;
-
-use \Able\IO\Path;
-use \Able\IO\File;
 use \Able\IO\Reader;
-use \Able\IO\ReadingBuffer;
+use \Able\IO\Abstractions\IReader;
 
 use \Able\Sabre\Utilities\Queue;
 use \Able\Sabre\Utilities\Task;
@@ -148,11 +144,11 @@ class Compiler {
 	}
 
 	/**
-	 * @param Reader $Reader
+	 * @param IReader $Reader
 	 * @return \Generator
 	 * @throws \Exception
 	 */
-	public function compile(Reader $Reader): \Generator {
+	public function compile(IReader $Reader): \Generator {
 
 		/**
 		 * The initially given source file should be placed
