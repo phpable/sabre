@@ -24,8 +24,7 @@ class Task implements IStringable {
 	 * @throws \Exception
 	 */
 	public final function file(){
-		return $this->Reader instanceof ILocated
-			? $this->Reader->getLocation() : '[Unknown Source]';
+		return $this->Reader->getLocation();
 	}
 
 	/**
