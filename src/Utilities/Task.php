@@ -88,6 +88,7 @@ class Task implements IStringable {
 
 	/**
 	 * @return string
+	 * @throws \Exception
 	 */
 	public final function toString(): string {
 		return $this->file();

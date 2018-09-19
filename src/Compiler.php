@@ -160,14 +160,14 @@ class Compiler {
 			try {
 
 				$out = '';
-				while(strlen(rtrim($line)) > 0) {
+				while (strlen(rtrim($line)) > 0) {
 					foreach ($this->parse($line) as $i => $fragment) {
 
 						/**
 						 * Normally the single line returns by the handler,
 						 * but it also possible to have an iterable object here instead.
 						 */
-						if ($fragment instanceof IIteratable){
+						if ($fragment instanceof IIteratable) {
 							yield $out;
 
 							$out = '';
@@ -183,6 +183,9 @@ class Compiler {
 				}
 
 				yield Str::break(Str::ltrim($out));
+			}catch (\ErrorException $Exception){
+				throw new \ErrorException($Exception->getMessage(), 0, 1,
+					$Exception->getFile(), $Exception->getLine(), $Exception);
 
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
@@ -285,7 +288,8 @@ class Compiler {
 		}
 
 		if (is_null($Signature)) {
-			throw new \Exception('Undefined token @' . $token . '!');
+			throw new \ErrorException('Undefined token @' . $token . '!', 0, 1,
+				$this->Queue->file(), $this->Queue->index());
 		}
 
 		$Args = ArgumentsParser::parse($condition);
