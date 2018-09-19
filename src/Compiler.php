@@ -185,7 +185,7 @@ class Compiler {
 				yield Str::break(Str::ltrim($out));
 			}catch (\ErrorException $Exception){
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
-					$Exception->getFile(), $Exception->getLine(), $Exception);
+					$Exception->getFile(), $Exception->getLine());
 
 			} catch (\Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
