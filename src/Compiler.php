@@ -149,7 +149,6 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	public function compile(IReader $Reader): \Generator {
-
 		/**
 		 * The initially given source file should be placed
 		 * at the beginning of the compilation queue.
@@ -168,11 +167,11 @@ class Compiler {
 						 * but it also possible to have an iterable object here instead.
 						 */
 						if ($fragment instanceof IIteratable) {
-							yield $out;
+							yield Str::rtrim($out);
 
 							$out = '';
 							foreach ($fragment->iterate() as $item) {
-								yield Str::break(Str::ltrim($item));
+								yield Str::ltrim($item);
 							}
 
 							continue;
@@ -182,7 +181,7 @@ class Compiler {
 					}
 				}
 
-				yield Str::break(Str::ltrim($out));
+				yield Str::ltrim($out);
 			}catch (\ErrorException $Exception){
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
 					$Exception->getFile(), $Exception->getLine());
