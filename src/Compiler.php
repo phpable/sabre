@@ -21,13 +21,14 @@ use \Able\Helpers\Str;
 use \Able\Helpers\Src;
 
 use \Able\Prototypes\IIteratable;
+use \Exception;
 
 class Compiler {
 
 	/**
 	 * @var callable[]
 	 */
-	private $Switches = [];
+	private array $Switches = [];
 
 	/**
 	 * Registers a characters sequence as a switch.
@@ -35,15 +36,15 @@ class Compiler {
 	 * @param string $token
 	 * @param callable $Handler
 	 * @return void
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public final function switch(string $token, callable $Handler): void {
 		if (isset($this->Switches[$token = strtolower($token)])){
-			throw new \Exception(sprintf('Hook "%s" is already registered!', $token));
+			throw new Exception(sprintf('Swicth "%s" is already registered!', $token));
 		}
 
 		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{4,12}$/', $token)){
-			throw new \Exception('Invalid hook syntax!');
+			throw new Exception('Invalid swicth syntax!');
 		}
 
 		$this->Switches[$token] = $Handler;
@@ -52,17 +53,17 @@ class Compiler {
 	/**
 	 * @var STrap[]
 	 */
-	private $Traps = [];
+	private array $Traps = [];
 
 	/**
 	 * Registers new trap by a signature.
 	 *
 	 * @param STrap $Signature
-	 * @throws \Exception
+	 * @throws Exception
 	 */
-	public final function trap(STrap $Signature){
+	public final function trap(STrap $Signature): void {
 		if (isset($this->Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
-			throw new \Exception(sprintf("Trap limited by '%s' and '%a' is already declared!",
+			throw new Exception(sprintf("Trap limited by '%s' and '%a' is already declared!",
 				$Signature->opening, $Signature->closing));
 		}
 
@@ -78,11 +79,11 @@ class Compiler {
 	 * Registers a characters sequence as a processable command.
 	 *
 	 * @param SToken $Signature
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public final function token(SToken $Signature) {
 		if (isset($this->Tokens[$Signature->token])){
-			throw new \Exception(sprintf("Token @%s already declared!", $Signature->opening));
+			throw new Exception(sprintf("Token @%s already declared!", $Signature->opening));
 		}
 
 		$this->Tokens[$Signature->token] = [$Signature,
@@ -94,11 +95,11 @@ class Compiler {
 	 *
 	 * @param string $token
 	 * @param SToken $Signature
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public final function extend(string $token, SToken $Signature){
 		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
-			throw new \Exception('Unregistered token ' . $token . '!');
+			throw new Exception('Unregistered token ' . $token . '!');
 		}
 
 		array_push($this->Tokens[$token], $Signature);
@@ -107,11 +108,11 @@ class Compiler {
 	/**
 	 * @param string $token
 	 * @param SToken $Signature
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public final function finalize(string $token, SToken $Signature){
 		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
-			throw new \Exception('Unregistered token ' . $token . '!');
+			throw new Exception('Unregistered token ' . $token . '!');
 		}
 
 		$this->Tokens[$token][1] = $Signature;
@@ -140,7 +141,7 @@ class Compiler {
 	}
 
 	/**
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public final function __construct() {
 		$this->Queue = new Queue(function(string $filepath){
@@ -167,7 +168,7 @@ class Compiler {
 	/**
 	 * @param IReader $Reader
 	 * @return \Generator
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	public function compile(IReader $Reader): \Generator {
 		/**
@@ -175,7 +176,7 @@ class Compiler {
 		 * the current compilation queue is empty!
 		 */
 		if (!$this->Queue->empty()){
-			throw new \Exception('The compilation queue is not empty!');
+			throw new Exception('The compilation queue is not empty!');
 		}
 
 		/**
@@ -216,7 +217,7 @@ class Compiler {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
 					$Exception->getFile(), $Exception->getLine());
 
-			} catch (\Exception $Exception) {
+			} catch (Exception $Exception) {
 				throw new \ErrorException($Exception->getMessage(), 0, 1,
 					$this->Queue->file(), $this->Queue->index());
 			}
@@ -226,7 +227,7 @@ class Compiler {
 	/**
 	 * @param string $line
 	 * @return \Generator
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	protected final function parse(string &$line): \Generator {
 		$List = Arr::sort(array_unique(array_map(function(SToken $Token){ return $Token->token; },
@@ -282,7 +283,7 @@ class Compiler {
 	 * @param string $token
 	 * @param string $line
 	 * @return mixed
-	 * @throws \Exception
+	 * @throws Exception
 	 */
 	protected final function handle(string $token, string &$line) {
 		if ($token[0] !== '@') {
