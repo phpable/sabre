@@ -60,7 +60,7 @@ class Compiler {
 	/**
 	 * @var SInjection[]
 	 */
-	private array $Injections = [];
+	private static array $Injections = [];
 
 	/**
 	 * Registers a new injection by the given signature.
@@ -71,17 +71,17 @@ class Compiler {
 	 * @throws EDuplicateConfiguration
 	 */
 	public final function injection(SInjection $Signature): void {
-		if (isset($this->Injections[$Signature->getHash()])){
+		if (isset(static::$Injections[$Signature->getHash()])){
 			throw new EDuplicateConfiguration($Signature->toString());
 		}
 
-		$this->Injections[$Signature->toString()] = $Signature;
+		static::$Injections[$Signature->toString()] = $Signature;
 	}
 
 	/**
 	 * @var SCommand[]
 	 */
-	private array $Commands = [];
+	private static array $Commands = [];
 
 	/**
 	 * Registers a new command by the given signature.
@@ -90,7 +90,7 @@ class Compiler {
 	 * @throws Exception
 	 */
 	public final function command(SCommand $Signature) {
-		if (isset($this->Commands[$Signature->token])){
+		if (isset(static::$Commands[$Signature->token])){
 			throw new EDuplicateConfiguration($Signature->token);
 		}
 
@@ -98,7 +98,7 @@ class Compiler {
 		 * Registers the default closing logic
 		 * for new commands (can be overloaded any time late).
 		 */
-		$this->Commands[$Signature->token] = [$Signature,
+		static::$Commands[$Signature->token] = [$Signature,
 			new SCommand('end', function(){ return '<?php }?>'; })];
 	}
 
@@ -112,11 +112,11 @@ class Compiler {
 	 * @throws EUndefinedCommand
 	 */
 	public final function extend(string $token, SCommand $Signature){
-		if (!isset($this->Commands[$token = strtolower(trim($token))])){
+		if (!isset(static::$Commands[$token = strtolower(trim($token))])){
 			throw new EUndefinedCommand($token);
 		}
 
-		array_push($this->Commands[$token], $Signature);
+		array_push(static::$Commands[$token], $Signature);
 	}
 
 	/**
@@ -128,11 +128,11 @@ class Compiler {
 	 * @throws EUndefinedCommand
 	 */
 	public final function finalize(string $token, SCommand $Signature){
-		if (!isset($this->Commands[$token = strtolower(trim($token))])){
+		if (!isset(static::$Commands[$token = strtolower(trim($token))])){
 			throw new EUndefinedCommand($token);
 		}
 
-		$this->Commands[$token][1] = $Signature;
+		static::$Commands[$token][1] = $Signature;
 	}
 
 	/**
@@ -250,7 +250,7 @@ class Compiler {
 	 */
 	protected final function parse(string &$line): Generator {
 		$List = Arr::sort(array_unique(array_map(function(SCommand $Token){ return $Token->token; },
-			Arr::simplify($this->Commands))), function($a, $b){ return strlen($b) - strlen($a); });
+			Arr::simplify(static::$Commands))), function($a, $b){ return strlen($b) - strlen($a); });
 
 		/**
 		 * @todo Refactoring needed.
@@ -281,7 +281,7 @@ class Compiler {
 			return $line;
 		}
 
-		foreach (Arr::sort($this->Injections, function(SInjection $f, SInjection $s){
+		foreach (Arr::sort(static::$Injections, function(SInjection $f, SInjection $s){
 				return strlen($s->opening) - strlen($f->opening);
 			}) as $Signature){
 
@@ -325,21 +325,21 @@ class Compiler {
 		if (count($this->Stack) > 0
 			&& ($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
 
-				$Signature = Arr::first(array_filter($this->Commands[Arr::first(Arr::last($this->Stack))],
+				$Signature = Arr::first(array_filter(static::$Commands[Arr::first(Arr::last($this->Stack))],
 					function(SCommand $Signature) use ($token){ return $Signature->token ==  $token; }));
 
 				if ($index < 2){
 					array_pop($this->Stack);
 				}
 
-		} elseif (isset($this->Commands[$token])) {
-			if (Arr::first($this->Commands[$token])->multiline) {
+		} elseif (isset(static::$Commands[$token])) {
+			if (Arr::first(static::$Commands[$token])->multiline) {
 				array_push($this->Stack, array_map(function (SCommand $Signature) {
 					return $Signature->token;
-				}, $this->Commands[$token]));
+				}, static::$Commands[$token]));
 			}
 
-			$Signature = Arr::first($this->Commands[$token]);
+			$Signature = Arr::first(static::$Commands[$token]);
 		}
 
 		if (is_null($Signature)) {
