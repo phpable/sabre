@@ -25,14 +25,16 @@ use \Able\Helpers\Str;
 use \Able\Helpers\Src;
 
 use \Able\Prototypes\IIteratable;
+
 use \Exception;
+use \Generator;
 
 class Compiler {
 
 	/**
 	 * @var callable[]
 	 */
-	private array $Directives = [];
+	private static  array $Directives = [];
 
 	/**
 	 * Registers the given sequence as a directive.
@@ -44,7 +46,7 @@ class Compiler {
 	 * @throws Exception
 	 */
 	public final function directive(string $token, callable $Handler): void {
-		if (isset($this->Directives[$token = strtolower($token)])){
+		if (isset(static::$Directives[$token = strtolower($token)])){
 			throw new EDuplicateConfiguration($token);
 		}
 
@@ -52,7 +54,7 @@ class Compiler {
 			throw new EInvalidConfiguration($token);
 		}
 
-		$this->Directives[$token] = $Handler;
+		static::$Directives[$token] = $Handler;
 	}
 
 	/**
@@ -182,10 +184,12 @@ class Compiler {
 
 	/**
 	 * @param IReader $Reader
-	 * @return \Generator
+	 * @return Generator
+	 *
 	 * @throws Exception
 	 */
-	public function compile(IReader $Reader): \Generator {
+	public function compile(IReader $Reader): Generator {
+
 		/**
 		 * Can't compile new sources until
 		 * the current compilation queue is empty!
@@ -209,8 +213,8 @@ class Compiler {
 					foreach ($this->parse($line) as $i => $fragment) {
 
 						/**
-						 * Normally the single line returns by the handler,
-						 * but it also possible to have an iterable object here instead.
+						 * Normally the single line returns by the handler, but in some cases
+						 * it's also possible to have an iterable object instead.
 						 */
 						if ($fragment instanceof IIteratable) {
 							yield Str::rtrim($out);
@@ -241,10 +245,10 @@ class Compiler {
 
 	/**
 	 * @param string $line
-	 * @return \Generator
+	 * @return Generator
 	 * @throws Exception
 	 */
-	protected final function parse(string &$line): \Generator {
+	protected final function parse(string &$line): Generator {
 		$List = Arr::sort(array_unique(array_map(function(SCommand $Token){ return $Token->token; },
 			Arr::simplify($this->Commands))), function($a, $b){ return strlen($b) - strlen($a); });
 
@@ -253,7 +257,7 @@ class Compiler {
 		 * Undesirable behavior when the list of tokens is empty.
 		 */
 		extract(Regex::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys($this->Directives))). ')(?:\s*)(.*))?$/s')->parse((string)$line, 'prefix', 'token', 'line'));
+			return preg_quote($value, '/'); }, array_keys(static::$Directives))). ')(?:\s*)(.*))?$/s')->parse((string)$line, 'prefix', 'token', 'line'));
 
 		if (!empty($prefix)) {
 			yield (string)$this->decorate($prefix);
@@ -302,7 +306,7 @@ class Compiler {
 	 */
 	protected final function handle(string $token, string &$line) {
 		if ($token[0] !== '@') {
-			return $this->Directives[$token]($this->Queue, $this->State);
+			return static::$Directives[$token]($this->Queue, $this->State);
 		}
 
 		if ($this->State->ignore) {
