@@ -4,12 +4,23 @@ namespace Able\Sabre\Structures;
 use \Able\Struct\AStruct;
 use \Able\Reglib\Regex;
 
+use \Able\Helpers\Str;
+
+use \Able\Prototypes\IStringable;
+use \Able\Prototypes\TStringable;
+
+use \Able\Sabre\Exceptions\EUnresolvableHandler;
+use \Able\Sabre\Exceptions\EInvalidToken;
+
 /**
  * @property string opening
  * @property string closing
  * @property callable handler
  */
-class STrap extends AStruct {
+class SInjection extends AStruct
+	implements IStringable {
+
+	use TStringable;
 
 	/**
 	 * @var array
@@ -17,18 +28,14 @@ class STrap extends AStruct {
 	protected static array $Prototype = ['opening', 'closing', 'handler'];
 
 	/**
-	 * @var bool
-	 */
-	protected const defaultMultilineValue = true;
-
-	/**
 	 * @param string $value
 	 * @return string
-	 * @throws \Exception
+	 *
+	 * @throws EInvalidToken
 	 */
 	protected final function setOpeningProperty(string $value): string {
 		if (!preg_match('/^[@{}()\[\]!%&*+=-]{1,3}$/', $value)){
-			throw new \Exception('Invalid opening format!');
+			throw new EInvalidToken($value);
 		}
 
 		return strtolower($value);
@@ -37,11 +44,12 @@ class STrap extends AStruct {
 	/**
 	 * @param string $value
 	 * @return string
-	 * @throws \Exception
+	 *
+	 * @throws EInvalidToken
 	 */
 	protected final function setClosingProperty(string $value): string {
 		if (!preg_match('/^[@{}()\[\]!%&*+=-]{1,3}$/', $value)){
-			throw new \Exception('Invalid closing format!');
+			throw new EInvalidToken($value);
 		}
 
 		return strtolower($value);
@@ -50,13 +58,28 @@ class STrap extends AStruct {
 	/**
 	 * @param callable $Handler
 	 * @return callable
-	 * @throws \Exception
+	 *
+	 * @throws EUnresolvableHandler
 	 */
 	protected final function setHanlerProperty(callable $Handler): callable {
 		if (!is_callable($Handler)){
-			throw new \Exception('Unresolvable handler!');
+			throw new EUnresolvableHandler();
 		}
 
 		return $Handler;
+	}
+
+	/**
+	 * @return string
+	 */
+	public final function toString(): string {
+		return Str::join(' ', $this->opening, $this->closing);
+	}
+
+	/**
+	 * @return string
+	 */
+	public final function getHash(): string {
+		return md5($this->toString());
 	}
 }

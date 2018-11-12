@@ -4,6 +4,10 @@ namespace Able\Sabre\Structures;
 use \Able\Struct\AStruct;
 use \Able\Reglib\Regex;
 
+use \Able\Sabre\Exceptions\EInvalidToken;
+use \Able\Sabre\Exceptions\ECapacityOutranged;
+use \Able\Sabre\Exceptions\EUnresolvableHandler;
+
 /**
  * @property string token
  * @property callable handler
@@ -11,21 +15,18 @@ use \Able\Reglib\Regex;
  * @property bool multiline
  * @property bool composite
  */
-class SToken extends AStruct {
+class SCommand extends AStruct {
 
 	/**
 	 * @var array
 	 */
-	protected static array $Prototype = ['token', 'handler', 'capacity', 'multiline', 'composite'];
-
-	/**
-	 * @const bool
-	 */
-	protected const defaultMultilineValue = true;
-	/**
-	 * @const bool
-	 */
-	protected const defaultCompositeValue = false;
+	protected static array $Prototype = [
+		'token',
+		'handler',
+		'capacity',
+		'multiline',
+		'composite'
+	];
 
 	/**
 	 * @const int
@@ -33,13 +34,23 @@ class SToken extends AStruct {
 	protected const defaultCapacityValue = 0;
 
 	/**
+	 * @const bool
+	 */
+	protected const defaultMultilineValue = true;
+
+	/**
+	 * @const bool
+	 */
+	protected const defaultCompositeValue = false;
+
+	/**
 	 * @param string $value
 	 * @return string
-	 * @throws \Exception
+	 * @throws EInvalidToken
 	 */
 	protected final function setTokenProperty(string $value): string {
 		if (!preg_match('/^' . Regex::RE_KEYWORD . '$/', $value)){
-			throw new \Exception('Invalid opening format!');
+			throw new EInvalidToken($value);
 		}
 
 		return strtolower($value);
@@ -48,11 +59,12 @@ class SToken extends AStruct {
 	/**
 	 * @param callable $Handler
 	 * @return callable
-	 * @throws \Exception
+	 *
+	 * @throws EUnresolvableHandler
 	 */
-	protected final function setHanlerProperty(callable $Handler): callable {
+	protected final function setHandlerProperty(callable $Handler): callable {
 		if (!is_callable($Handler)){
-			throw new \Exception('Unresolvable handler!');
+			throw new EUnresolvableHandler();
 		}
 
 		return $Handler;
@@ -61,11 +73,12 @@ class SToken extends AStruct {
 	/**
 	 * @param int $value
 	 * @return int
-	 * @throws \Exception
+	 *
+	 * @throws ECapacityOutranged
 	 */
 	protected final function setCapacityProperty(int $value): int {
 		if ($value < 0){
-			throw new \Exception('The capacity value is out of range!');
+			throw new ECapacityOutranged($value);
 		}
 
 		return $value;
@@ -74,7 +87,6 @@ class SToken extends AStruct {
 	/**
 	 * @param bool $value
 	 * @return bool
-	 * @throws \Exception
 	 */
 	protected final function setMultilineProperty(bool $value): bool {
 		return $value;
@@ -83,7 +95,6 @@ class SToken extends AStruct {
 	/**
 	 * @param bool $value
 	 * @return bool
-	 * @throws \Exception
 	 */
 	protected final function setCompositeProperty(bool $value): bool {
 		return $value;
