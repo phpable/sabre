@@ -4,11 +4,15 @@ namespace Able\Sabre;
 use \Able\IO\Reader;
 use \Able\IO\Abstractions\IReader;
 
+use \Able\Sabre\Exceptions\EDuplicateConfiguration;
+use \Able\Sabre\Exceptions\EInvalidConfiguration;
+use \Able\Sabre\Exceptions\EUndefinedCommand;
+
 use \Able\Sabre\Utilities\Queue;
 use \Able\Sabre\Utilities\Task;
 
-use \Able\Sabre\Structures\SToken;
-use \Able\Sabre\Structures\STrap;
+use \Able\Sabre\Structures\SCommand;
+use \Able\Sabre\Structures\SInjection;
 use \Able\Sabre\Structures\SState;
 
 use \Able\Sabre\Parsers\ArgumentsParser;
@@ -28,94 +32,105 @@ class Compiler {
 	/**
 	 * @var callable[]
 	 */
-	private array $Switches = [];
+	private array $Directives = [];
 
 	/**
-	 * Registers a characters sequence as a switch.
+	 * Registers the given sequence as a directive.
 	 *
 	 * @param string $token
 	 * @param callable $Handler
 	 * @return void
+	 *
 	 * @throws Exception
 	 */
-	public final function switch(string $token, callable $Handler): void {
-		if (isset($this->Switches[$token = strtolower($token)])){
-			throw new Exception(sprintf('Swicth "%s" is already registered!', $token));
+	public final function directive(string $token, callable $Handler): void {
+		if (isset($this->Directives[$token = strtolower($token)])){
+			throw new EDuplicateConfiguration($token);
 		}
 
 		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{4,12}$/', $token)){
-			throw new Exception('Invalid swicth syntax!');
+			throw new EInvalidConfiguration($token);
 		}
 
-		$this->Switches[$token] = $Handler;
+		$this->Directives[$token] = $Handler;
 	}
 
 	/**
-	 * @var STrap[]
+	 * @var SInjection[]
 	 */
-	private array $Traps = [];
+	private array $Injections = [];
 
 	/**
-	 * Registers new trap by a signature.
+	 * Registers a new injection by the given signature.
 	 *
-	 * @param STrap $Signature
+	 * @param SInjection $Signature
+	 * @return void
+	 *
+	 * @throws EDuplicateConfiguration
+	 */
+	public final function injection(SInjection $Signature): void {
+		if (isset($this->Injections[$Signature->getHash()])){
+			throw new EDuplicateConfiguration($Signature->toString());
+		}
+
+		$this->Injections[$Signature->toString()] = $Signature;
+	}
+
+	/**
+	 * @var SCommand[]
+	 */
+	private array $Commands = [];
+
+	/**
+	 * Registers a new command by the given signature.
+	 *
+	 * @param SCommand $Signature
 	 * @throws Exception
 	 */
-	public final function trap(STrap $Signature): void {
-		if (isset($this->Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
-			throw new Exception(sprintf("Trap limited by '%s' and '%a' is already declared!",
-				$Signature->opening, $Signature->closing));
+	public final function command(SCommand $Signature) {
+		if (isset($this->Commands[$Signature->token])){
+			throw new EDuplicateConfiguration($Signature->token);
 		}
 
-		$this->Traps[$Signature->opening] = $Signature;
+		/**
+		 * Registers the default closing logic
+		 * for new commands (can be overloaded any time late).
+		 */
+		$this->Commands[$Signature->token] = [$Signature,
+			new SCommand('end', function(){ return '<?php }?>'; })];
 	}
 
 	/**
-	 * @var array
-	 */
-	private $Tokens = [];
-
-	/**
-	 * Registers a characters sequence as a processable command.
-	 *
-	 * @param SToken $Signature
-	 * @throws Exception
-	 */
-	public final function token(SToken $Signature) {
-		if (isset($this->Tokens[$Signature->token])){
-			throw new Exception(sprintf("Token @%s already declared!", $Signature->opening));
-		}
-
-		$this->Tokens[$Signature->token] = [$Signature,
-			new SToken('end', function(){ return '<?php }?>'; })];
-	}
-
-	/**
-	 * Extends an existing command by adding new keywords.
+	 * Overrides the default finalization logic
+	 * for an existing command.
 	 *
 	 * @param string $token
-	 * @param SToken $Signature
-	 * @throws Exception
+	 * @param SCommand $Signature
+	 *
+	 * @throws EUndefinedCommand
 	 */
-	public final function extend(string $token, SToken $Signature){
-		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
-			throw new Exception('Unregistered token ' . $token . '!');
+	public final function extend(string $token, SCommand $Signature){
+		if (!isset($this->Commands[$token = strtolower(trim($token))])){
+			throw new EUndefinedCommand($token);
 		}
 
-		array_push($this->Tokens[$token], $Signature);
+		array_push($this->Commands[$token], $Signature);
 	}
 
 	/**
+	 * Overrides the finalization logic for an existing command.
+	 *
 	 * @param string $token
-	 * @param SToken $Signature
-	 * @throws Exception
+	 * @param SCommand $Signature
+	 *
+	 * @throws EUndefinedCommand
 	 */
-	public final function finalize(string $token, SToken $Signature){
-		if (!isset($this->Tokens[$token = strtolower(trim($token))])){
-			throw new Exception('Unregistered token ' . $token . '!');
+	public final function finalize(string $token, SCommand $Signature){
+		if (!isset($this->Commands[$token = strtolower(trim($token))])){
+			throw new EUndefinedCommand($token);
 		}
 
-		$this->Tokens[$token][1] = $Signature;
+		$this->Commands[$token][1] = $Signature;
 	}
 
 	/**
@@ -230,15 +245,15 @@ class Compiler {
 	 * @throws Exception
 	 */
 	protected final function parse(string &$line): \Generator {
-		$List = Arr::sort(array_unique(array_map(function(SToken $Token){ return $Token->token; },
-			Arr::simplify($this->Tokens))), function($a, $b){ return strlen($b) - strlen($a); });
+		$List = Arr::sort(array_unique(array_map(function(SCommand $Token){ return $Token->token; },
+			Arr::simplify($this->Commands))), function($a, $b){ return strlen($b) - strlen($a); });
 
 		/**
 		 * @todo Refactoring needed.
 		 * Undesirable behavior when the list of tokens is empty.
 		 */
 		extract(Regex::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s')->parse((string)$line, 'prefix', 'token', 'line'));
+			return preg_quote($value, '/'); }, array_keys($this->Directives))). ')(?:\s*)(.*))?$/s')->parse((string)$line, 'prefix', 'token', 'line'));
 
 		if (!empty($prefix)) {
 			yield (string)$this->decorate($prefix);
@@ -262,7 +277,7 @@ class Compiler {
 			return $line;
 		}
 
-		foreach (Arr::sort($this->Traps, function(STrap $f, STrap $s){
+		foreach (Arr::sort($this->Injections, function(SInjection $f, SInjection $s){
 				return strlen($s->opening) - strlen($f->opening);
 			}) as $Signature){
 
@@ -287,7 +302,7 @@ class Compiler {
 	 */
 	protected final function handle(string $token, string &$line) {
 		if ($token[0] !== '@') {
-			return $this->Switches[$token]($this->Queue, $this->State);
+			return $this->Directives[$token]($this->Queue, $this->State);
 		}
 
 		if ($this->State->ignore) {
@@ -306,21 +321,21 @@ class Compiler {
 		if (count($this->Stack) > 0
 			&& ($index = (int)array_search($token, Arr::last($this->Stack))) > 0){
 
-				$Signature = Arr::first(array_filter($this->Tokens[Arr::first(Arr::last($this->Stack))],
-					function(SToken $Signature) use ($token){ return $Signature->token ==  $token; }));
+				$Signature = Arr::first(array_filter($this->Commands[Arr::first(Arr::last($this->Stack))],
+					function(SCommand $Signature) use ($token){ return $Signature->token ==  $token; }));
 
 				if ($index < 2){
 					array_pop($this->Stack);
 				}
 
-		} elseif (isset($this->Tokens[$token])) {
-			if (Arr::first($this->Tokens[$token])->multiline) {
-				array_push($this->Stack, array_map(function (SToken $Signature) {
+		} elseif (isset($this->Commands[$token])) {
+			if (Arr::first($this->Commands[$token])->multiline) {
+				array_push($this->Stack, array_map(function (SCommand $Signature) {
 					return $Signature->token;
-				}, $this->Tokens[$token]));
+				}, $this->Commands[$token]));
 			}
 
-			$Signature = Arr::first($this->Tokens[$token]);
+			$Signature = Arr::first($this->Commands[$token]);
 		}
 
 		if (is_null($Signature)) {
