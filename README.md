@@ -1,5 +1,5 @@
 ## Introduction
-The phpABLE sabre tamplate engine. 
+The phpABLE templates engine. 
 
 ## Requirements
 * PHP >= 7.4.0
