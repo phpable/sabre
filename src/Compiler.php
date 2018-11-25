@@ -26,25 +26,28 @@ use \Able\Prototypes\IIteratable;
 class Compiler {
 
 	/**
-	 * @var array
+	 * @var callable[]
 	 */
-	private $Hooks = [];
+	private $Switches = [];
 
 	/**
-	 * @param string $hook
+	 * Registers a characters sequince as a switch.
+	 *
+	 * @param string $token
 	 * @param callable $Handler
+	 * @return void
 	 * @throws \Exception
 	 */
-	public final function hook(string $hook, callable $Handler){
-		if (isset($this->Hooks[$hook = strtolower($hook)])){
-			throw new \Exception('Hook "' . $hook . '" is already registered!');
+	public final function switch(string $token, callable $Handler): void {
+		if (isset($this->Switches[$token = strtolower($token)])){
+			throw new \Exception(sprintf('Hook "%s" is already registered!', $token));
 		}
 
-		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{4,12}$/', $hook)){
+		if (!preg_match('/^[A-Za-z0-9(){}\[\]!#$%^&*+~-]{4,12}$/', $token)){
 			throw new \Exception('Invalid hook syntax!');
 		}
 
-		$this->Hooks[$hook] = $Handler;
+		$this->Switches[$token] = $Handler;
 	}
 
 	/**
@@ -200,7 +203,7 @@ class Compiler {
 	 */
 	protected final function parse(string &$line): \Generator {
 		$e = '/^(.*?)(?:((?:(?<=\A|\W)@' . Reglib::KEYWORD . ')|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys($this->Hooks))). ')(?:\s*)(.*))?$/s';
+			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s';
 
 		extract(Regexp::create($e)->exec((string)$line, 'prefix', 'token', 'line'));
 
@@ -250,7 +253,7 @@ class Compiler {
 	 */
 	protected final function handle(string $token, string &$line) {
 		if ($token[0] !== '@') {
-			return $this->Hooks[$token]($this->Queue, $this->State);
+			return $this->Switches[$token]($this->Queue, $this->State);
 		}
 
 		if ($this->State->ignore) {
