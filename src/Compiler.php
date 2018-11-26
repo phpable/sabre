@@ -119,6 +119,28 @@ class Compiler {
 	}
 
 	/**
+	 * @var string[]
+	 */
+	private $Ignored = [];
+
+	/**
+	 * Registers a sequence to been ignored by the compiler.
+	 *
+	 * @param string $token
+	 * @return void
+	 * @throws \Exception
+	 */
+	public final function ignore(string $token): void {
+		if (!preg_match('/^' . Reglib::KEYWORD . '$/', $token)){
+			throw new \Exception(sprintf('Invalid token: %s!', $token));
+		}
+
+		if (!in_array($token, $this->Ignored)){
+			array_push($this->Ignored, $token);
+		}
+	}
+
+	/**
 	 * @var SState
 	 */
 	private $State = null;
@@ -267,6 +289,10 @@ class Compiler {
 		}
 
 		if ($this->State->verbatim) {
+			return $token;
+		}
+
+		if (in_array(substr($token, 1), $this->Ignored)){
 			return $token;
 		}
 
