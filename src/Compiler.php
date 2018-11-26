@@ -119,28 +119,6 @@ class Compiler {
 	}
 
 	/**
-	 * @var string[]
-	 */
-	private $Ignored = [];
-
-	/**
-	 * Registers a sequence to been ignored by the compiler.
-	 *
-	 * @param string $token
-	 * @return void
-	 * @throws \Exception
-	 */
-	public final function ignore(string $token): void {
-		if (!preg_match('/^' . Reglib::KEYWORD . '$/', $token)){
-			throw new \Exception(sprintf('Invalid token: %s!', $token));
-		}
-
-		if (!in_array($token, $this->Ignored)){
-			array_push($this->Ignored, $token);
-		}
-	}
-
-	/**
 	 * @var SState
 	 */
 	private $State = null;
@@ -230,10 +208,11 @@ class Compiler {
 	 * @throws \Exception
 	 */
 	protected final function parse(string &$line): \Generator {
-		$e = '/^(.*?)(?:((?:(?<=\A|\W)@' . Reglib::KEYWORD . ')|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s';
+		$List = Arr::sort(array_unique(array_map(function(SToken $Token){ return $Token->token; },
+			Arr::simplify($this->Tokens))), function($a, $b){ return strlen($b) - strlen($a); });
 
-		extract(Regexp::create($e)->exec((string)$line, 'prefix', 'token', 'line'));
+		extract(Regexp::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
+			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s')->exec((string)$line, 'prefix', 'token', 'line'));
 
 		if (!empty($prefix)) {
 			yield (string)$this->decorate($prefix);
@@ -289,10 +268,6 @@ class Compiler {
 		}
 
 		if ($this->State->verbatim) {
-			return $token;
-		}
-
-		if (in_array(substr($token, 1), $this->Ignored)){
 			return $token;
 		}
 
