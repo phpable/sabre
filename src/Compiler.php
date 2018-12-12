@@ -31,7 +31,7 @@ class Compiler {
 	private $Switches = [];
 
 	/**
-	 * Registers a characters sequince as a switch.
+	 * Registers a characters sequence as a switch.
 	 *
 	 * @param string $token
 	 * @param callable $Handler
@@ -51,17 +51,39 @@ class Compiler {
 	}
 
 	/**
+	 * @var STrap[]
+	 */
+	private $Traps = [];
+
+	/**
+	 * Registers new trap by a signature.
+	 *
+	 * @param STrap $Signature
+	 * @throws \Exception
+	 */
+	public final function trap(STrap $Signature){
+		if (isset($this->Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
+			throw new \Exception(sprintf("Trap limited by '%s' and '%a' is already declared!",
+				$Signature->opening, $Signature->closing));
+		}
+
+		$this->Traps[$Signature->opening] = $Signature;
+	}
+
+	/**
 	 * @var array
 	 */
 	private $Tokens = [];
 
 	/**
+	 * Registers a characters sequence as a processable command.
+	 *
 	 * @param SToken $Signature
 	 * @throws \Exception
 	 */
 	public final function token(SToken $Signature) {
 		if (isset($this->Tokens[$Signature->token])){
-			throw new \Exception('Token @' . $Signature->opening . 'already declared!');
+			throw new \Exception(sprintf("Token @%s already declared!", $Signature->opening));
 		}
 
 		$this->Tokens[$Signature->token] = [$Signature,
@@ -69,24 +91,8 @@ class Compiler {
 	}
 
 	/**
-	 * @var STrap[]
-	 */
-	private $Traps = [];
-
-	/**
-	 * @param STrap $Signature
-	 * @throws \Exception
-	 */
-	public final function trap(STrap $Signature){
-		if (isset($this->Traps[$name = Str::join('-', $Signature->opening, $Signature->closing)])){
-			throw new \Exception('Trap limited with "' . $Signature->opening
-				. '" and "' . $Signature->closing. '" are already declared!');
-		}
-
-		$this->Traps[$Signature->opening] = $Signature;
-	}
-
-	/**
+	 * Extends an existing command by adding new keywords.
+	 *
 	 * @param string $token
 	 * @param SToken $Signature
 	 * @throws \Exception
