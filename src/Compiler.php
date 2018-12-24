@@ -211,6 +211,10 @@ class Compiler {
 		$List = Arr::sort(array_unique(array_map(function(SToken $Token){ return $Token->token; },
 			Arr::simplify($this->Tokens))), function($a, $b){ return strlen($b) - strlen($a); });
 
+		/**
+		 * @todo Refactoring needed.
+		 * Undesirable behavior when the list of tokens is empty.
+		 */
 		extract(Regexp::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
 			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s')->exec((string)$line, 'prefix', 'token', 'line'));
 
