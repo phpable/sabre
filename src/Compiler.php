@@ -129,11 +129,24 @@ class Compiler {
 	private $Queue = null;
 
 	/**
-	 * @param callable $Handler
+	 * @var array
+	 */
+	private $History = [];
+
+	/**
+	 * @return string[]
+	 */
+	public final function history(): array {
+		return $this->History;
+	}
+
+	/**
 	 * @throws \Exception
 	 */
-	public final function __construct(callable $Handler = null) {
-		$this->Queue = new Queue($Handler);
+	public final function __construct() {
+		$this->Queue = new Queue(function(string $filepath){
+			array_push($this->History, $filepath);
+		});
 
 		/**
 		 * The flags are used to determine how the source file should be processed.
@@ -159,11 +172,20 @@ class Compiler {
 	 */
 	public function compile(IReader $Reader): \Generator {
 		/**
-		 * The initially given source file should be placed
+		 * Can't compile new sources until
+		 * the current compilation queue is empty!
+		 */
+		if (!$this->Queue->empty()){
+			throw new \Exception('The compilation queue is not empty!');
+		}
+
+		/**
+		 * The initial source should always be placed
 		 * at the beginning of the compilation queue.
 		 */
 		$this->Queue->immediately($Reader);
 
+		$this->History = [];
 		while(!is_null($line = $this->Queue->take())) {
 			try {
 
