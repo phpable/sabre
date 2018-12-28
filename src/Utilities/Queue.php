@@ -66,6 +66,13 @@ class Queue implements ICallable, ICountable {
 	}
 
 	/**
+	 * @return bool
+	 */
+	public final function empty(): bool {
+		return $this->count() < 1;
+	}
+
+	/**
 	 * @return void
 	 */
 	public final function flush(): void {
