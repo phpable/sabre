@@ -27,7 +27,7 @@ class STrap extends AStruct {
 	 * @throws \Exception
 	 */
 	protected final function setOpeningProperty(string $value): string {
-		if (!preg_match('/^[{}()\[\]!%&*+=-]{1,3}$/', $value)){
+		if (!preg_match('/^[@{}()\[\]!%&*+=-]{1,3}$/', $value)){
 			throw new \Exception('Invalid opening format!');
 		}
 
@@ -40,7 +40,7 @@ class STrap extends AStruct {
 	 * @throws \Exception
 	 */
 	protected final function setClosingProperty(string $value): string {
-		if (!preg_match('/^[{}()\[\]!%&*+=-]{1,3}$/', $value)){
+		if (!preg_match('/^[@{}()\[\]!%&*+=-]{1,3}$/', $value)){
 			throw new \Exception('Invalid closing format!');
 		}
 
