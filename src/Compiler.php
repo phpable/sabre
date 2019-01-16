@@ -262,11 +262,12 @@ class Compiler {
 			return $line;
 		}
 
-		foreach ($this->Traps as $Signature){
-			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
-				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/',
+		foreach (Arr::sort($this->Traps, function(STrap $f, STrap $s){
+				return strlen($s->opening) - strlen($f->opening);
+			}) as $Signature){
 
-				function (array $Matches) use ($Signature) {
+			$line = preg_replace_callback('/' . preg_quote($Signature->opening, '/')
+				. '\s*(.+?)\s*' . preg_quote($Signature->closing, '/') . '/', function (array $Matches) use ($Signature) {
 					return call_user_func($Signature->handler, $Matches[1]); }, $line);
 		}
 
