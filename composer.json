@@ -1,6 +1,5 @@
 {
 	"name": "able/sabre",
-	"version": "2.0",
 	"type": "library",
 	"keywords": ["phpable", "template", "engine"],
 	"description": "phpABLE template engine",
@@ -13,6 +12,7 @@
 	],
 	"require": {
 		"php": ">=7.2.0",
+		"able/statics": "1.0.*",
 		"able/prototypes": "dev-master",
 		"able/struct": "dev-master",
 		"able/helpers": "dev-master",

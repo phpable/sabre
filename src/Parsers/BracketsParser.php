@@ -1,7 +1,7 @@
 <?php
 namespace Able\Sabre\Parsers;
 
-use \Able\Prototypes\TStatic;
+use \Able\Statics\TStatic;
 
 use \Able\Reglib\Regexp;
 use \Able\Reglib\Reglib;
