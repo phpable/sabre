@@ -14,8 +14,7 @@ use \Able\Sabre\Structures\SState;
 use \Able\Sabre\Parsers\ArgumentsParser;
 use \Able\Sabre\Parsers\BracketsParser;
 
-use \Able\Reglib\Regexp;
-use \Able\Reglib\Reglib;
+use \Able\Reglib\Regex;
 
 use \Able\Helpers\Arr;
 use \Able\Helpers\Str;
@@ -237,8 +236,8 @@ class Compiler {
 		 * @todo Refactoring needed.
 		 * Undesirable behavior when the list of tokens is empty.
 		 */
-		extract(Regexp::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
-			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s')->exec((string)$line, 'prefix', 'token', 'line'));
+		extract(Regex::create('/^(.*?)(?:((?:(?<=\A|\W)@(?:' . Str::join('|', $List) . '))|' . Str::join('|', array_map(function($value){
+			return preg_quote($value, '/'); }, array_keys($this->Switches))). ')(?:\s*)(.*))?$/s')->parse((string)$line, 'prefix', 'token', 'line'));
 
 		if (!empty($prefix)) {
 			yield (string)$this->decorate($prefix);

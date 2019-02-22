@@ -7,7 +7,6 @@ use \Able\Prototypes\ICallable;
 use \Able\Prototypes\ICountable;
 use \Able\Prototypes\TCallable;
 
-use \Able\Reglib\Regexp;
 use \Able\Helpers\Arr;
 
 use \Able\IO\Path;

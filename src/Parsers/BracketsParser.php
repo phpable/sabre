@@ -3,8 +3,7 @@ namespace Able\Sabre\Parsers;
 
 use \Able\Statics\TStatic;
 
-use \Able\Reglib\Regexp;
-use \Able\Reglib\Reglib;
+use \Able\Reglib\Regex;
 
 use \Able\Helpers\Src;
 use \Able\Helpers\Str;
@@ -72,8 +71,8 @@ class BracketsParser {
 					$count--;
 				}
 
-				$parsed .= Regexp::create('/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:'
-					. Reglib::QUOTED . '|[^' . Src::esc($pair, ']') . ']+)*\s*' : '') . '/')->retrieve($source);
+				$parsed .= Regex::create('/^[' . Src::esc($pair, ']') . ']{0,1}' . ($count > 0 ? '(?:'
+					. Regex::RE_QUOTED . '|[^' . Src::esc($pair, ']') . ']+)*\s*' : '') . '/')->retrieve($source);
 
 				if (empty($source) && $count > 0 && !is_null($Resolver)) {
 					$source = call_user_func($Resolver);

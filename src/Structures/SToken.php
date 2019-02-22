@@ -2,7 +2,7 @@
 namespace Able\Sabre\Structures;
 
 use \Able\Struct\AStruct;
-use \Able\Reglib\Reglib;
+use \Able\Reglib\Regex;
 
 /**
  * @property string token
@@ -38,7 +38,7 @@ class SToken extends AStruct {
 	 * @throws \Exception
 	 */
 	protected final function setTokenProperty(string $value): string {
-		if (!preg_match('/^' . Reglib::KEYWORD . '$/', $value)){
+		if (!preg_match('/^' . Regex::RE_KEYWORD . '$/', $value)){
 			throw new \Exception('Invalid opening format!');
 		}
 

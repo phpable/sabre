@@ -2,7 +2,7 @@
 namespace Able\Sabre\Structures;
 
 use \Able\Struct\AStruct;
-use \Able\Reglib\Reglib;
+use \Able\Reglib\Regex;
 
 /**
  * @property string opening

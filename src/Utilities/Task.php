@@ -6,8 +6,6 @@ use \Able\IO\Abstractions\IReader;
 use \Able\IO\Abstractions\ILocated;
 use \Able\IO\Reader;
 
-use \Able\Reglib\Regexp;
-
 use \Able\Prototypes\IStringable;
 use \Able\Prototypes\TStringable;
 

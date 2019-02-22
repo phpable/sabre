@@ -3,8 +3,7 @@ namespace Able\Sabre\Parsers;
 
 use \Able\Statics\TStatic;
 
-use \Able\Reglib\Regexp;
-use \Able\Reglib\Reglib;
+use \Able\Reglib\Regex;
 
 final class ArgumentsParser {
 	use TStatic;
@@ -21,11 +20,11 @@ final class ArgumentsParser {
 			$fragment = '';
 
 			while (strlen($source) > 0 && !preg_match('/^\s*,+/', $source)) {
-				$fragment .= Regexp::create('/^(?:' . Reglib::QUOTED
+				$fragment .= Regex::create('/^(?:' . Regex::RE_QUOTED
 					. '|[^({\[\'",]+)/')->retrieve($source) . BracketsParser::parse($source);
 			}
 
-			Regexp::create('/^\s*,+\s*/')->retrieve($source);
+			Regex::create('/^\s*,+\s*/')->retrieve($source);
 			if (!empty($fragment)) {
 				array_push($Args, $fragment);
 			}
