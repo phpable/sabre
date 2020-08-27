@@ -354,24 +354,10 @@ class Compiler {
 
 		$Args = Arr::push($Args, $this->Queue);
 		if ($Signature->composite){
-			$Args = Arr::push($Args, clone $this);
+			$Args = Arr::push($Args, new $this());
 		}
 
 		return call_user_func_array($Signature->handler, $Args);
-	}
-
-	/**
-	 * Clone compiler instance and restore it
-	 * to the initial state.
-	 */
-	public final function __clone() {
-		$this->Queue = clone $this->Queue;
-		$this->Queue->flush();
-
-		$this->State = clone $this->State;
-		$this->State->flush();
-
-		$this->Stack = [];
 	}
 }
 
