@@ -12,13 +12,13 @@
 	],
 	"require": {
 		"php": ">=7.2.0",
-		"able/statics": "dev-master",
-		"able/prototypes": "dev-master",
-		"able/exceptions": "dev-master",
-		"able/struct": "dev-master",
-		"able/helpers": "dev-master",
-		"able/io": "dev-master",
-		"able/reglib": "dev-master"
+		"able/statics": "^1.5.0",
+		"able/prototypes": "^1.1.2",
+		"able/exceptions": "^0.7.4",
+		"able/struct": "^1.1.1",
+		"able/helpers": "^0.9.1",
+		"able/io": "^0.9.1",
+		"able/reglib": "^0.5.2"
 	},
 	"autoload": {
 		"psr-4": {
