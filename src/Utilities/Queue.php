@@ -43,7 +43,7 @@ class Queue implements ICallable, ICountable {
 	 * @return mixed
 	 * @throws \Exception
 	 */
-	public final function call(string $name, array $Args = []) {
+	public final function call(string $name, array $Args = []): mixed {
 		if (count($this->Stack) < 1 || !method_exists($this->active(), $name)
 			|| in_array(strtolower($name), ['read, __construct'])){
 				throw new \Exception('Undefined method!');
